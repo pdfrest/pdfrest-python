@@ -13,6 +13,7 @@ else:  # pragma: no cover - used only for typing at runtime
     PdfRestFile = Any
 
 __all__ = (
+    "ALL_OCR_LANGUAGES",
     "ALL_PDF_INFO_QUERIES",
     "BmpColorModel",
     "CompressionLevel",
@@ -21,6 +22,7 @@ __all__ = (
     "GifColorModel",
     "GraphicSmoothing",
     "JpegColorModel",
+    "OcrLanguage",
     "PdfAType",
     "PdfInfoQuery",
     "PdfMergeInput",
@@ -140,3 +142,21 @@ SummaryOutputFormat = Literal["plaintext", "markdown"]
 SummaryOutputType = Literal["json", "file"]
 
 TranslateOutputFormat = Literal["plaintext", "markdown"]
+
+OcrLanguage = Literal[
+    "ChineseSimplified",
+    "ChineseTraditional",
+    "Dutch",
+    "English",
+    "French",
+    "German",
+    "Italian",
+    "Japanese",
+    "Korean",
+    "Portuguese",
+    "Spanish",
+]
+
+ALL_OCR_LANGUAGES: tuple[OcrLanguage, ...] = cast(
+    tuple[OcrLanguage, ...], get_args(OcrLanguage)
+)

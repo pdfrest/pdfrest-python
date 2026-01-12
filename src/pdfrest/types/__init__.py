@@ -1,6 +1,7 @@
 """Public import surface for shared pdfrest types."""
 
 from .public import (
+    ALL_OCR_LANGUAGES,
     ALL_PDF_INFO_QUERIES,
     BmpColorModel,
     CompressionLevel,
@@ -9,6 +10,7 @@ from .public import (
     GifColorModel,
     GraphicSmoothing,
     JpegColorModel,
+    OcrLanguage,
     PdfAType,
     PdfInfoQuery,
     PdfMergeInput,
@@ -28,6 +30,7 @@ from .public import (
 )
 
 __all__ = [
+    "ALL_OCR_LANGUAGES",
     "ALL_PDF_INFO_QUERIES",
     "BmpColorModel",
     "CompressionLevel",
@@ -36,6 +39,7 @@ __all__ = [
     "GifColorModel",
     "GraphicSmoothing",
     "JpegColorModel",
+    "OcrLanguage",
     "PdfAType",
     "PdfInfoQuery",
     "PdfMergeInput",

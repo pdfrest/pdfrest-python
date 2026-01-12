@@ -38,11 +38,36 @@ def test_ocr_payload_invalid_page_range() -> None:
         OcrPdfPayload.model_validate({"files": [file_repr], "pages": ["5-2"]})
 
 
+def test_ocr_payload_languages() -> None:
+    file_repr = make_pdf_file(PdfRestFileID.generate(1))
+    payload = OcrPdfPayload.model_validate(
+        {"files": [file_repr], "languages": ["English", "German"]}
+    )
+    assert payload.languages == ["English", "German"]
+    assert (
+        payload.model_dump(
+            mode="json", by_alias=True, exclude_none=True, exclude_unset=True
+        )["languages"]
+        == "English,German"
+    )
+
+
+def test_ocr_payload_invalid_language() -> None:
+    file_repr = make_pdf_file(PdfRestFileID.generate(1))
+    with pytest.raises(ValidationError, match="ChineseSimplified"):
+        OcrPdfPayload.model_validate({"files": [file_repr], "languages": ["Klingon"]})
+
+
 def test_ocr_pdf_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
     input_file = make_pdf_file(PdfRestFileID.generate(1))
     payload_dump = OcrPdfPayload.model_validate(
-        {"files": [input_file], "pages": ["1-3"], "output": "ocr"}
+        {
+            "files": [input_file],
+            "pages": ["1-3"],
+            "output": "ocr",
+            "languages": ["English"],
+        }
     ).model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
     output_id = str(PdfRestFileID.generate())
 
@@ -91,9 +116,9 @@ def test_ocr_pdf_request_customization(
 ) -> None:
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
     input_file = make_pdf_file(PdfRestFileID.generate(1))
-    payload_dump = OcrPdfPayload.model_validate({"files": [input_file]}).model_dump(
-        mode="json", by_alias=True, exclude_none=True, exclude_unset=True
-    )
+    payload_dump = OcrPdfPayload.model_validate(
+        {"files": [input_file], "languages": ["English"]}
+    ).model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
     output_id = str(PdfRestFileID.generate())
     captured_timeout: dict[str, float | dict[str, float] | None] = {}
 
@@ -152,9 +177,9 @@ async def test_async_ocr_pdf_success(
 ) -> None:
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
     input_file = make_pdf_file(PdfRestFileID.generate(2))
-    payload_dump = OcrPdfPayload.model_validate({"files": [input_file]}).model_dump(
-        mode="json", by_alias=True, exclude_none=True, exclude_unset=True
-    )
+    payload_dump = OcrPdfPayload.model_validate(
+        {"files": [input_file], "languages": ["English"]}
+    ).model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
     output_id = str(PdfRestFileID.generate())
 
     seen: dict[str, int] = {"post": 0, "get": 0}

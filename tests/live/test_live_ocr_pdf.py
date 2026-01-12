@@ -18,7 +18,7 @@ def test_live_ocr_pdf_success(
         base_url=pdfrest_live_base_url,
     ) as client:
         uploaded = client.files.create_from_paths([resource])[0]
-        response = client.ocr_pdf(uploaded)
+        response = client.ocr_pdf(uploaded, languages=["English", "German"])
 
     assert isinstance(response, PdfRestFileBasedResponse)
     assert response.output_files

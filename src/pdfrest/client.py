@@ -114,6 +114,7 @@ from .types import (
     GifColorModel,
     GraphicSmoothing,
     JpegColorModel,
+    OcrLanguage,
     PdfAType,
     PdfInfoQuery,
     PdfMergeInput,
@@ -2264,6 +2265,7 @@ class PdfRestClient(_SyncApiClient):
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
         *,
+        languages: OcrLanguage | Sequence[OcrLanguage] = "English",
         pages: PdfPageSelection | None = None,
         output: str | None = None,
         extra_query: Query | None = None,
@@ -2273,7 +2275,7 @@ class PdfRestClient(_SyncApiClient):
     ) -> PdfRestFileBasedResponse:
         """Perform OCR on a PDF to make text searchable and extractable."""
 
-        payload: dict[str, Any] = {"files": file}
+        payload: dict[str, Any] = {"files": file, "languages": languages}
         if pages is not None:
             payload["pages"] = pages
         if output is not None:
@@ -3263,6 +3265,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
         *,
+        languages: OcrLanguage | Sequence[OcrLanguage] = "English",
         pages: PdfPageSelection | None = None,
         output: str | None = None,
         extra_query: Query | None = None,
@@ -3272,7 +3275,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
     ) -> PdfRestFileBasedResponse:
         """Perform OCR on a PDF to make text searchable and extractable."""
 
-        payload: dict[str, Any] = {"files": file}
+        payload: dict[str, Any] = {"files": file, "languages": languages}
         if pages is not None:
             payload["pages"] = pages
         if output is not None:
