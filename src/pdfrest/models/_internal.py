@@ -26,6 +26,8 @@ from ..types import (
     PdfAType,
     PdfColorProfile,
     PdfInfoQuery,
+    PdfPageOrientation,
+    PdfPageSize,
     PdfXType,
     SummaryFormat,
     SummaryOutputFormat,
@@ -1126,6 +1128,57 @@ class PdfFlattenLayersPayload(BaseModel):
     ] = None
 
 
+class PdfBlankPayload(BaseModel):
+    """Adapt caller options into a pdfRest-ready blank PDF request payload."""
+
+    page_size: Annotated[
+        PdfPageSize,
+        Field(serialization_alias="page_size"),
+    ]
+    page_count: Annotated[
+        int,
+        Field(serialization_alias="page_count", ge=1, le=1000),
+    ]
+    page_orientation: Annotated[
+        PdfPageOrientation | None,
+        Field(serialization_alias="page_orientation", default=None),
+    ] = None
+    custom_height: Annotated[
+        float | None,
+        Field(serialization_alias="custom_height", gt=0, default=None),
+    ] = None
+    custom_width: Annotated[
+        float | None,
+        Field(serialization_alias="custom_width", gt=0, default=None),
+    ] = None
+    output: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+    @model_validator(mode="after")
+    def _validate_page_configuration(self) -> PdfBlankPayload:
+        is_custom = self.page_size == "custom"
+        has_custom_height = self.custom_height is not None
+        has_custom_width = self.custom_width is not None
+        if is_custom:
+            if not (has_custom_height and has_custom_width):
+                msg = "custom_height and custom_width are required when page_size is 'custom'."
+                raise ValueError(msg)
+            if self.page_orientation is not None:
+                msg = "page_orientation must be omitted when page_size is 'custom'."
+                raise ValueError(msg)
+        else:
+            if self.page_orientation is None:
+                msg = "page_orientation is required when page_size is not 'custom'."
+                raise ValueError(msg)
+            if has_custom_height or has_custom_width:
+                msg = "custom_height and custom_width can only be provided when page_size is 'custom'."
+                raise ValueError(msg)
+        return self
+
+
 class PdfConvertColorsPayload(BaseModel):
     """Adapt caller options into a pdfRest-ready convert-colors request payload."""
 
@@ -1239,7 +1292,11 @@ class PdfRestRawFileResponse(BaseModel):
 
     input_id: Annotated[
         list[PdfRestFileID],
-        Field(alias="inputId", description="The id of the input file"),
+        Field(
+            alias="inputId",
+            description="The id of the input file",
+            default_factory=list,
+        ),
         BeforeValidator(_ensure_list),
     ]
     output_urls: Annotated[

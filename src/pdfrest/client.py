@@ -81,6 +81,7 @@ from .models._internal import (
     GifPdfRestPayload,
     JpegPdfRestPayload,
     OcrPdfPayload,
+    PdfBlankPayload,
     PdfCompressPayload,
     PdfConvertColorsPayload,
     PdfFlattenAnnotationsPayload,
@@ -121,7 +122,9 @@ from .types import (
     PdfColorProfile,
     PdfInfoQuery,
     PdfMergeInput,
+    PdfPageOrientation,
     PdfPageSelection,
+    PdfPageSize,
     PdfRedactionInstruction,
     PdfRGBColor,
     PdfXType,
@@ -1032,8 +1035,9 @@ class _SyncApiClient(_BaseApiClient[httpx.Client]):
             for file_id in output_ids
         ]
 
+        input_ids = raw_response.input_id or (raw_response.ids or [])
         response_payload: dict[str, Any] = {
-            "input_id": [str(file_id) for file_id in raw_response.input_id],
+            "input_id": [str(file_id) for file_id in input_ids],
             "output_file": [
                 file.model_dump(mode="json", by_alias=True) for file in output_files
             ],
@@ -1307,8 +1311,9 @@ class _AsyncApiClient(_BaseApiClient[httpx.AsyncClient]):
                 )
             )
 
+        input_ids = raw_response.input_id or (raw_response.ids or [])
         response_payload: dict[str, Any] = {
-            "input_id": [str(file_id) for file_id in raw_response.input_id],
+            "input_id": [str(file_id) for file_id in input_ids],
             "output_file": [
                 file.model_dump(mode="json", by_alias=True) for file in output_files
             ],
@@ -2755,6 +2760,45 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def blank_pdf(
+        self,
+        *,
+        page_size: PdfPageSize,
+        page_count: int,
+        page_orientation: PdfPageOrientation | None = None,
+        custom_height: float | None = None,
+        custom_width: float | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Create a blank PDF with the specified size, count, and orientation."""
+
+        payload: dict[str, Any] = {
+            "page_size": page_size,
+            "page_count": page_count,
+        }
+        if page_orientation is not None:
+            payload["page_orientation"] = page_orientation
+        if custom_height is not None:
+            payload["custom_height"] = custom_height
+        if custom_width is not None:
+            payload["custom_width"] = custom_width
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/blank-pdf",
+            payload=payload,
+            payload_model=PdfBlankPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def flatten_transparencies(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -3852,6 +3896,45 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/pdf-with-converted-colors",
             payload=payload,
             payload_model=PdfConvertColorsPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def blank_pdf(
+        self,
+        *,
+        page_size: PdfPageSize,
+        page_count: int,
+        page_orientation: PdfPageOrientation | None = None,
+        custom_height: float | None = None,
+        custom_width: float | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronously create a blank PDF with the specified size."""
+
+        payload: dict[str, Any] = {
+            "page_size": page_size,
+            "page_count": page_count,
+        }
+        if page_orientation is not None:
+            payload["page_orientation"] = page_orientation
+        if custom_height is not None:
+            payload["custom_height"] = custom_height
+        if custom_width is not None:
+            payload["custom_width"] = custom_width
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/blank-pdf",
+            payload=payload,
+            payload_model=PdfBlankPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,

@@ -28,7 +28,9 @@ __all__ = (
     "PdfInfoQuery",
     "PdfMergeInput",
     "PdfMergeSource",
+    "PdfPageOrientation",
     "PdfPageSelection",
+    "PdfPageSize",
     "PdfRGBColor",
     "PdfRedactionInstruction",
     "PdfRedactionPreset",
@@ -178,3 +180,6 @@ PdfColorProfile = Literal[
     "acrobat9-cmyk",
     "custom",
 ]
+
+PdfPageSize = Literal["letter", "legal", "ledger", "A3", "A4", "A5", "custom"]
+PdfPageOrientation = Literal["portrait", "landscape"]
