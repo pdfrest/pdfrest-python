@@ -24,6 +24,7 @@ __all__ = (
     "JpegColorModel",
     "OcrLanguage",
     "PdfAType",
+    "PdfColorProfile",
     "PdfInfoQuery",
     "PdfMergeInput",
     "PdfMergeSource",
@@ -160,3 +161,20 @@ OcrLanguage = Literal[
 ALL_OCR_LANGUAGES: tuple[OcrLanguage, ...] = cast(
     tuple[OcrLanguage, ...], get_args(OcrLanguage)
 )
+PdfColorProfile = Literal[
+    "lab-d50",
+    "srgb",
+    "apple-rgb",
+    "color-match-rgb",
+    "gamma-18",
+    "gamma-22",
+    "dot-gain-10",
+    "dot-gain-15",
+    "dot-gain-20",
+    "dot-gain-25",
+    "dot-gain-30",
+    "monitor-rgb",
+    "acrobat5-cmyk",
+    "acrobat9-cmyk",
+    "custom",
+]

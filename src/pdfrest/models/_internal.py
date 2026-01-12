@@ -24,6 +24,7 @@ from pdfrest.types.public import PdfRedactionPreset
 from ..types import (
     OcrLanguage,
     PdfAType,
+    PdfColorProfile,
     PdfInfoQuery,
     PdfXType,
     SummaryFormat,
@@ -1123,6 +1124,68 @@ class PdfFlattenLayersPayload(BaseModel):
         Field(serialization_alias="output", min_length=1, default=None),
         AfterValidator(_validate_output_prefix),
     ] = None
+
+
+class PdfConvertColorsPayload(BaseModel):
+    """Adapt caller options into a pdfRest-ready convert-colors request payload."""
+
+    files: Annotated[
+        list[PdfRestFile],
+        Field(
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("file", "files"),
+            serialization_alias="id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    color_profile: Annotated[
+        PdfColorProfile,
+        Field(serialization_alias="color_profile"),
+    ]
+    profile: Annotated[
+        list[PdfRestFile] | None,
+        Field(
+            default=None,
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("profile", "profiles"),
+            serialization_alias="profile_id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types(
+                "application/vnd.iccprofile",
+                "application/octet-stream",
+                error_msg="Profile must be an ICC file",
+            )
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ] = None
+    preserve_black: Annotated[
+        bool | None,
+        Field(serialization_alias="preserve_black", default=None),
+    ] = None
+    output: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+    @model_validator(mode="after")
+    def _validate_profile_dependency(self) -> PdfConvertColorsPayload:
+        if self.color_profile == "custom":
+            if not self.profile:
+                msg = "color_profile 'custom' requires a profile to be provided."
+                raise ValueError(msg)
+        elif self.profile:
+            msg = "A profile can only be provided when color_profile is 'custom'."
+            raise ValueError(msg)
+        return self
 
 
 class BmpPdfRestPayload(BasePdfRestGraphicPayload[Literal["rgb", "gray"]]):

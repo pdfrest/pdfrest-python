@@ -82,6 +82,7 @@ from .models._internal import (
     JpegPdfRestPayload,
     OcrPdfPayload,
     PdfCompressPayload,
+    PdfConvertColorsPayload,
     PdfFlattenAnnotationsPayload,
     PdfFlattenFormsPayload,
     PdfFlattenLayersPayload,
@@ -117,6 +118,7 @@ from .types import (
     JpegColorModel,
     OcrLanguage,
     PdfAType,
+    PdfColorProfile,
     PdfInfoQuery,
     PdfMergeInput,
     PdfPageSelection,
@@ -2718,6 +2720,41 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def convert_colors(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        color_profile: PdfColorProfile,
+        profile: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        preserve_black: bool = False,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Convert PDF colors using preset or custom ICC profiles."""
+
+        payload: dict[str, Any] = {
+            "files": file,
+            "color_profile": color_profile,
+            "preserve_black": preserve_black,
+        }
+        if profile is not None:
+            payload["profile"] = profile
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/pdf-with-converted-colors",
+            payload=payload,
+            payload_model=PdfConvertColorsPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def flatten_transparencies(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -3780,6 +3817,41 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/compressed-pdf",
             payload=payload,
             payload_model=PdfCompressPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def convert_colors(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        color_profile: PdfColorProfile,
+        profile: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        preserve_black: bool = False,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronously convert PDF colors using preset or custom ICC profiles."""
+
+        payload: dict[str, Any] = {
+            "files": file,
+            "color_profile": color_profile,
+            "preserve_black": preserve_black,
+        }
+        if profile is not None:
+            payload["profile"] = profile
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/pdf-with-converted-colors",
+            payload=payload,
+            payload_model=PdfConvertColorsPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
