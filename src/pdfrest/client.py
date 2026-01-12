@@ -84,6 +84,7 @@ from .models._internal import (
     PdfCompressPayload,
     PdfFlattenAnnotationsPayload,
     PdfFlattenFormsPayload,
+    PdfFlattenLayersPayload,
     PdfFlattenTransparenciesPayload,
     PdfInfoPayload,
     PdfLinearizePayload,
@@ -2796,6 +2797,32 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def flatten_layers(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Flatten all layers in a PDF into a single layer."""
+
+        payload: dict[str, Any] = {"files": file}
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/flattened-layers-pdf",
+            payload=payload,
+            payload_model=PdfFlattenLayersPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def rasterize_pdf(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -3832,6 +3859,32 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/flattened-annotations-pdf",
             payload=payload,
             payload_model=PdfFlattenAnnotationsPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def flatten_layers(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronously flatten all layers in a PDF."""
+
+        payload: dict[str, Any] = {"files": file}
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/flattened-layers-pdf",
+            payload=payload,
+            payload_model=PdfFlattenLayersPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
