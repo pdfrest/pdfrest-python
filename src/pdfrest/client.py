@@ -81,6 +81,7 @@ from .models._internal import (
     GifPdfRestPayload,
     JpegPdfRestPayload,
     OcrPdfPayload,
+    PdfAddAttachmentPayload,
     PdfCompressPayload,
     PdfFlattenAnnotationsPayload,
     PdfFlattenFormsPayload,
@@ -2717,6 +2718,33 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def add_attachment_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        attachment: PdfRestFile | Sequence[PdfRestFile],
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Attach an uploaded file to a PDF."""
+
+        payload: dict[str, Any] = {"files": file, "attachment": attachment}
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/pdf-with-added-attachment",
+            payload=payload,
+            payload_model=PdfAddAttachmentPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def flatten_transparencies(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -3753,6 +3781,33 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/compressed-pdf",
             payload=payload,
             payload_model=PdfCompressPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def add_attachment_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        attachment: PdfRestFile | Sequence[PdfRestFile],
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronously attach an uploaded file to a PDF."""
+
+        payload: dict[str, Any] = {"files": file, "attachment": attachment}
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/pdf-with-added-attachment",
+            payload=payload,
+            payload_model=PdfAddAttachmentPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
