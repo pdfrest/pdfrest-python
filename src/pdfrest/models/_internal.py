@@ -170,6 +170,13 @@ def _serialize_text_objects(value: list[BaseModel]) -> str:
     return to_json(payload).decode()
 
 
+def _serialize_signature_configuration(
+    value: _PdfSignatureConfigurationModel,
+) -> str:
+    payload = value.model_dump(mode="json", exclude_none=True)
+    return to_json(payload).decode()
+
+
 def _allowed_mime_types(
     allowed_mime_types: str, *more_allowed_mime_types: str, error_msg: str | None
 ) -> Callable[[Any], Any]:
@@ -603,6 +610,34 @@ class PdfPresetRedactionModel(BaseModel):
     value: PdfRedactionPreset
 
 
+class _PdfSignaturePointModel(BaseModel):
+    x: str | int | float
+    y: str | int | float
+
+
+class _PdfSignatureLocationModel(BaseModel):
+    bottom_left: _PdfSignaturePointModel
+    top_right: _PdfSignaturePointModel
+    page: str | int
+
+
+class _PdfSignatureDisplayModel(BaseModel):
+    include_distinguished_name: bool | None = None
+    include_datetime: bool | None = None
+    contact: str | None = None
+    location: str | None = None
+    name: str | None = None
+    reason: str | None = None
+
+
+class _PdfSignatureConfigurationModel(BaseModel):
+    type: Literal["new"]
+    name: str | None = None
+    logo_opacity: Annotated[float | None, Field(ge=0, le=1, default=None)] = None
+    location: _PdfSignatureLocationModel | None = None
+    display: _PdfSignatureDisplayModel | None = None
+
+
 _PdfRedactionVariant = Annotated[
     PdfLiteralRedactionModel | PdfRegexRedactionModel | PdfPresetRedactionModel,
     Field(discriminator="type"),
@@ -984,6 +1019,158 @@ class PdfFlattenFormsPayload(BaseModel):
         Field(serialization_alias="output", min_length=1, default=None),
         AfterValidator(_validate_output_prefix),
     ] = None
+
+
+class PdfSignPayload(BaseModel):
+    """Adapt caller options into a pdfRest-ready sign request payload."""
+
+    files: Annotated[
+        list[PdfRestFile],
+        Field(
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("file", "files"),
+            serialization_alias="id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    signature_configuration: Annotated[
+        _PdfSignatureConfigurationModel,
+        Field(serialization_alias="signature_configuration"),
+        PlainSerializer(_serialize_signature_configuration),
+    ]
+    pfx_credential: Annotated[
+        list[PdfRestFile] | None,
+        Field(
+            default=None,
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("pfx", "pfx_credential"),
+            serialization_alias="pfx_credential_id",
+        ),
+        BeforeValidator(_ensure_list),
+        BeforeValidator(
+            _allowed_mime_types(
+                "application/x-pkcs12",
+                "application/pkcs12",
+                "application/octet-stream",
+                error_msg="PFX credentials must be a .pfx or .p12 file",
+            )
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ] = None
+    pfx_passphrase: Annotated[
+        list[PdfRestFile] | None,
+        Field(
+            default=None,
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("pfx_passphrase", "passphrase"),
+            serialization_alias="pfx_passphrase_id",
+        ),
+        BeforeValidator(_ensure_list),
+        BeforeValidator(
+            _allowed_mime_types(
+                "text/plain",
+                "application/octet-stream",
+                error_msg="PFX passphrase must be a text file",
+            )
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ] = None
+    certificate: Annotated[
+        list[PdfRestFile] | None,
+        Field(
+            default=None,
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("certificate", "cert"),
+            serialization_alias="certificate_id",
+        ),
+        BeforeValidator(_ensure_list),
+        BeforeValidator(
+            _allowed_mime_types(
+                "application/pkix-cert",
+                "application/x-x509-ca-cert",
+                "application/x-pem-file",
+                "application/octet-stream",
+                error_msg="Certificate must be a .pem or .der file",
+            )
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ] = None
+    private_key: Annotated[
+        list[PdfRestFile] | None,
+        Field(
+            default=None,
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("private_key", "key"),
+            serialization_alias="private_key_id",
+        ),
+        BeforeValidator(_ensure_list),
+        BeforeValidator(
+            _allowed_mime_types(
+                "application/pkcs8",
+                "application/x-pem-file",
+                "application/octet-stream",
+                error_msg="Private key must be a .pem or .der file",
+            )
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ] = None
+    logo: Annotated[
+        list[PdfRestFile] | None,
+        Field(
+            default=None,
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("logo", "logos"),
+            serialization_alias="logo_id",
+        ),
+        BeforeValidator(_ensure_list),
+        BeforeValidator(
+            _allowed_mime_types(
+                "image/jpeg",
+                "image/png",
+                "image/tiff",
+                "image/bmp",
+                error_msg="Logo must be an image file",
+            )
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ] = None
+    output: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+    @model_validator(mode="after")
+    def _validate_credentials(self) -> PdfSignPayload:
+        has_pfx = self.pfx_credential is not None or self.pfx_passphrase is not None
+        has_pem = self.certificate is not None or self.private_key is not None
+
+        if has_pfx and has_pem:
+            msg = "Provide either PFX credentials (pfx + passphrase) or certificate/private_key, not both."
+            raise ValueError(msg)
+        if has_pfx:
+            if not self.pfx_credential or not self.pfx_passphrase:
+                msg = "Both pfx and passphrase are required when supplying PFX credentials."
+                raise ValueError(msg)
+        elif has_pem:
+            if not self.certificate or not self.private_key:
+                msg = "Both certificate and private_key are required when supplying PEM/DER credentials."
+                raise ValueError(msg)
+        else:
+            msg = "Either PFX credentials (pfx + passphrase) or certificate/private_key credentials are required."
+            raise ValueError(msg)
+
+        return self
 
 
 class PdfCompressPayload(BaseModel):

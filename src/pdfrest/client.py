@@ -99,6 +99,7 @@ from .models._internal import (
     PdfRedactionPreviewPayload,
     PdfRestRawFileResponse,
     PdfRestrictPayload,
+    PdfSignPayload,
     PdfSplitPayload,
     PdfToExcelPayload,
     PdfToPdfaPayload,
@@ -131,6 +132,8 @@ from .types import (
     PdfRedactionInstruction,
     PdfRestriction,
     PdfRGBColor,
+    PdfSignatureConfiguration,
+    PdfSignatureCredentials,
     PdfXType,
     PngColorModel,
     SummaryFormat,
@@ -3070,6 +3073,42 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def sign_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        signature_configuration: PdfSignatureConfiguration,
+        credentials: PdfSignatureCredentials,
+        logo: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Digitally sign a PDF using PFX credentials or a certificate/private key."""
+
+        payload: dict[str, Any] = {
+            "files": file,
+            "signature_configuration": signature_configuration,
+        }
+        payload.update(credentials)
+
+        if logo is not None:
+            payload["logo"] = logo
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/signed-pdf",
+            payload=payload,
+            payload_model=PdfSignPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def flatten_transparencies(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -4444,6 +4483,42 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/pdf-with-added-attachment",
             payload=payload,
             payload_model=PdfAddAttachmentPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def sign_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        signature_configuration: PdfSignatureConfiguration,
+        credentials: PdfSignatureCredentials,
+        logo: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Digitally sign a PDF using PFX credentials or a certificate/private key."""
+
+        payload: dict[str, Any] = {
+            "files": file,
+            "signature_configuration": signature_configuration,
+        }
+        payload.update(credentials)
+
+        if logo is not None:
+            payload["logo"] = logo
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/signed-pdf",
+            payload=payload,
+            payload_model=PdfSignPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
