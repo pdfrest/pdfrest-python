@@ -4,8 +4,9 @@ import json
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
-from pdfrest import AsyncPdfRestClient, PdfRestClient, PdfRestConfigurationError
+from pdfrest import AsyncPdfRestClient, PdfRestClient
 from pdfrest.models import PdfRestFile, PdfRestFileBasedResponse, PdfRestFileID
 from pdfrest.models._internal import PdfSignPayload
 
@@ -47,6 +48,14 @@ def make_logo_file(file_id: str) -> PdfRestFile:
     )
 
 
+def make_signature_location() -> dict[str, dict[str, int] | int]:
+    return {
+        "bottom_left": {"x": 0, "y": 0},
+        "top_right": {"x": 216, "y": 72},
+        "page": 1,
+    }
+
+
 def test_sign_pdf_with_pfx_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
     input_file = make_pdf_file(PdfRestFileID.generate(1))
@@ -57,6 +66,7 @@ def test_sign_pdf_with_pfx_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     signature_configuration = {
         "type": "new",
         "name": "esignature",
+        "location": make_signature_location(),
         "display": {"include_datetime": True, "name": "Signer"},
     }
     payload_dump = PdfSignPayload.model_validate(
@@ -183,18 +193,44 @@ def test_sign_pdf_requires_credential_pair(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
-    input_file = make_pdf_file(PdfRestFileID.generate(3))
+    input_file = make_pdf_file(PdfRestFileID.generate())
     pfx_file = make_pfx_file(str(PdfRestFileID.generate()))
     transport = httpx.MockTransport(lambda request: (_ for _ in ()).throw(RuntimeError))
 
     with (
         PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client,
-        pytest.raises(PdfRestConfigurationError, match=r"pfx.*passphrase"),
+        pytest.raises(ValidationError, match=r"pfx.*passphrase"),
+    ):
+        client.sign_pdf(
+            input_file,
+            signature_configuration={
+                "type": "new",
+                "location": make_signature_location(),
+            },
+            credentials={"pfx": pfx_file},
+        )
+
+
+def test_sign_pdf_requires_location_for_new_signature_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate())
+    pfx_file = make_pfx_file(str(PdfRestFileID.generate()))
+    passphrase_file = make_passphrase_file(str(PdfRestFileID.generate()))
+    transport = httpx.MockTransport(lambda request: (_ for _ in ()).throw(RuntimeError))
+
+    with (
+        PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client,
+        pytest.raises(
+            ValidationError,
+            match=r"Missing location information for a new digital signature field",
+        ),
     ):
         client.sign_pdf(
             input_file,
             signature_configuration={"type": "new"},
-            credentials={"pfx": pfx_file},
+            credentials={"pfx": pfx_file, "passphrase": passphrase_file},
         )
 
 
@@ -203,7 +239,7 @@ async def test_async_sign_pdf_request_customization(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
-    input_file = make_pdf_file(PdfRestFileID.generate(4))
+    input_file = make_pdf_file(PdfRestFileID.generate())
     certificate_file = make_certificate_file(str(PdfRestFileID.generate()))
     private_key_file = make_private_key_file(str(PdfRestFileID.generate()))
     output_id = str(PdfRestFileID.generate())
@@ -245,7 +281,10 @@ async def test_async_sign_pdf_request_customization(
     ) as client:
         response = await client.sign_pdf(
             input_file,
-            signature_configuration={"type": "new"},
+            signature_configuration={
+                "type": "new",
+                "location": make_signature_location(),
+            },
             credentials={
                 "certificate": certificate_file,
                 "private_key": private_key_file,

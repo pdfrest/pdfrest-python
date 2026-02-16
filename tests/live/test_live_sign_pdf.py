@@ -8,6 +8,14 @@ from pdfrest.models import PdfRestFile
 from ..resources import get_test_resource_path
 
 
+def make_signature_location() -> dict[str, dict[str, int] | int]:
+    return {
+        "bottom_left": {"x": 0, "y": 0},
+        "top_right": {"x": 216, "y": 72},
+        "page": 1,
+    }
+
+
 @pytest.fixture(scope="module")
 def uploaded_pdf_for_signing(
     pdfrest_api_key: str,
@@ -96,6 +104,7 @@ def test_live_sign_pdf_with_pfx_credentials(
     signature_configuration = {
         "type": "new",
         "name": "pdfrest-live",
+        "location": make_signature_location(),
     }
     with PdfRestClient(
         api_key=pdfrest_api_key,
@@ -170,7 +179,10 @@ def test_live_sign_pdf_invalid_signature_configuration(
     ):
         client.sign_pdf(
             uploaded_pdf_for_signing,
-            signature_configuration={"type": "new"},
+            signature_configuration={
+                "type": "new",
+                "location": make_signature_location(),
+            },
             credentials={
                 "pfx": uploaded_pfx_credential,
                 "passphrase": uploaded_passphrase,

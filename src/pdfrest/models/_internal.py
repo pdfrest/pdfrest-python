@@ -637,6 +637,13 @@ class _PdfSignatureConfigurationModel(BaseModel):
     location: _PdfSignatureLocationModel | None = None
     display: _PdfSignatureDisplayModel | None = None
 
+    @model_validator(mode="after")
+    def _validate_location_for_new_type(self) -> _PdfSignatureConfigurationModel:
+        if self.type == "new" and self.location is None:
+            msg = "Missing location information for a new digital signature field."
+            raise ValueError(msg)
+        return self
+
 
 _PdfRedactionVariant = Annotated[
     PdfLiteralRedactionModel | PdfRegexRedactionModel | PdfPresetRedactionModel,
