@@ -10,7 +10,7 @@ Build production-grade PDF automation with the official Python SDK for
 OCR, extraction, redaction, security, forms, and AI-ready document workflows.
 
 - Homepage: [pdfrest.com](https://pdfrest.com/)
-- API docs: [pdfrest.com/apidocs](https://pdfrest.com/apidocs/)
+- API docs: [docs.pdfrest.com](https://docs.pdfrest.com/api-reference-guides/directory/)
 - Python SDK docs: [python.pdfrest.com](https://python.pdfrest.com/)
 - API Lab: [pdfrest.com/apilab](https://pdfrest.com/apilab/)
 
