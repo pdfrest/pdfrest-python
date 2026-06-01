@@ -19,7 +19,7 @@ LOGO_OPACITY_BOUNDS = (
 )
 
 INVALID_LOGO_OPACITY_VALUES = (
-    pytest.param(0.0, id="zero"),
+    pytest.param(-0.1, id="below-min"),
     pytest.param(1.1, id="above-max"),
 )
 
@@ -501,12 +501,53 @@ def test_live_sign_pdf_invalid_logo_opacity(
                 "signature_configuration": _to_json_string(
                     {
                         "type": "new",
+                        "name": "live-invalid-logo-opacity",
                         "location": make_signature_location(),
                         "logo_opacity": invalid_logo_opacity,
                     }
                 )
             },
         )
+
+
+def test_live_sign_pdf_logo_opacity_zero_is_allowed(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_signing: PdfRestFile,
+    uploaded_pfx_credential: PdfRestFile,
+    uploaded_passphrase: PdfRestFile,
+) -> None:
+    with PdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        response = client.sign_pdf(
+            uploaded_pdf_for_signing,
+            signature_configuration={
+                "type": "new",
+                "name": "live-logo-opacity-zero",
+                "location": make_signature_location(),
+            },
+            credentials={
+                "pfx": uploaded_pfx_credential,
+                "passphrase": uploaded_passphrase,
+            },
+            extra_body={
+                "signature_configuration": _to_json_string(
+                    {
+                        "type": "new",
+                        "name": "live-logo-opacity-zero",
+                        "location": make_signature_location(),
+                        "logo_opacity": 0.0,
+                    }
+                )
+            },
+            output="live-logo-opacity-zero",
+        )
+
+    assert response.output_file.type == "application/pdf"
+    assert response.output_file.name == "live-logo-opacity-zero.pdf"
+    assert str(uploaded_pdf_for_signing.id) in response.input_ids
 
 
 @pytest.mark.asyncio
@@ -601,9 +642,51 @@ async def test_live_async_sign_pdf_invalid_logo_opacity(
                     "signature_configuration": _to_json_string(
                         {
                             "type": "new",
+                            "name": "live-async-invalid-logo-opacity",
                             "location": make_signature_location(),
                             "logo_opacity": invalid_logo_opacity,
                         }
                     )
                 },
             )
+
+
+@pytest.mark.asyncio
+async def test_live_async_sign_pdf_logo_opacity_zero_is_allowed(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_signing: PdfRestFile,
+    uploaded_pfx_credential: PdfRestFile,
+    uploaded_passphrase: PdfRestFile,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        response = await client.sign_pdf(
+            uploaded_pdf_for_signing,
+            signature_configuration={
+                "type": "new",
+                "name": "live-async-logo-opacity-zero",
+                "location": make_signature_location(),
+            },
+            credentials={
+                "pfx": uploaded_pfx_credential,
+                "passphrase": uploaded_passphrase,
+            },
+            extra_body={
+                "signature_configuration": _to_json_string(
+                    {
+                        "type": "new",
+                        "name": "live-async-logo-opacity-zero",
+                        "location": make_signature_location(),
+                        "logo_opacity": 0.0,
+                    }
+                )
+            },
+            output="live-async-logo-opacity-zero",
+        )
+
+    assert response.output_file.type == "application/pdf"
+    assert response.output_file.name == "live-async-logo-opacity-zero.pdf"
+    assert str(uploaded_pdf_for_signing.id) in response.input_ids
