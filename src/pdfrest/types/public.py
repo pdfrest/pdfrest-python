@@ -28,6 +28,7 @@ __all__ = (
     "HtmlWebLayout",
     "JpegColorModel",
     "OcrLanguage",
+    "PdfAOutputType",
     "PdfAType",
     "PdfAddTextObject",
     "PdfCMYKColor",
@@ -323,8 +324,11 @@ class PdfPemCredentials(TypedDict):
 #: [AsyncPdfRestClient.sign_pdf][pdfrest.AsyncPdfRestClient.sign_pdf].
 PdfSignatureCredentials = PdfPfxCredentials | PdfPemCredentials
 
-#: PDF/A conformance targets accepted by ``convert_to_pdfa``.
+#: Canonical PDF/A conformance targets accepted by ``convert_to_pdfa``.
 PdfAType = Literal["PDF/A-1b", "PDF/A-2b", "PDF/A-2u", "PDF/A-3b", "PDF/A-3u"]
+#: Caller-facing ``convert_to_pdfa`` input type. Values are matched
+#: case-insensitively and normalized to [PdfAType][pdfrest.types.PdfAType].
+PdfAOutputType = PdfAType | str
 #: PDF/X conformance targets accepted by ``convert_to_pdfx``.
 PdfXType = Literal["PDF/X-1a", "PDF/X-3", "PDF/X-4", "PDF/X-6"]
 #: Granularity modes for extracted full text payloads.

@@ -49,6 +49,16 @@ from ._demo_value_sanitizers import demo_file_id_or_passthrough
 from .public import PdfRestFile, PdfRestFileID
 
 PdfConvertColorProfile = PdfPresetColorProfile | Literal["custom"]
+PDFA_OUTPUT_TYPES: tuple[PdfAType, ...] = (
+    "PDF/A-1b",
+    "PDF/A-2b",
+    "PDF/A-2u",
+    "PDF/A-3b",
+    "PDF/A-3u",
+)
+PDFA_OUTPUT_TYPE_MAP: dict[str, PdfAType] = {
+    output_type.casefold(): output_type for output_type in PDFA_OUTPUT_TYPES
+}
 
 
 def _ensure_list(value: Any) -> Any:
@@ -186,6 +196,12 @@ def _bool_to_true_false(value: Any) -> Any:
     if isinstance(value, bool):
         return "true" if value else "false"
     return value
+
+
+def _normalize_pdfa_output_type(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    return PDFA_OUTPUT_TYPE_MAP.get(value.casefold(), value)
 
 
 def _serialize_page_ranges(value: list[str | int | tuple[str | int, ...]]) -> str:
@@ -1344,7 +1360,11 @@ class PdfToPdfaPayload(BaseModel):
         ),
         PlainSerializer(_serialize_as_first_file_id),
     ]
-    output_type: Annotated[PdfAType, Field(serialization_alias="output_type")]
+    output_type: Annotated[
+        PdfAType,
+        Field(serialization_alias="output_type"),
+        BeforeValidator(_normalize_pdfa_output_type),
+    ]
     output: Annotated[
         str | None,
         Field(serialization_alias="output", min_length=1, default=None),

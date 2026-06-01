@@ -189,7 +189,7 @@ def test_convert_to_pdfa_request_customization(
     with PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client:
         response = client.convert_to_pdfa(
             input_file,
-            output_type="PDF/A-3b",
+            output_type="pdf/a-3b",
             output="custom",
             rasterize_if_errors_encountered="on",
             extra_query={"trace": "true"},
@@ -251,7 +251,7 @@ async def test_async_convert_to_pdfa_request_customization(
     async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
         response = await client.convert_to_pdfa(
             input_file,
-            output_type="PDF/A-2u",
+            output_type="pdf/a-2u",
             output="async-custom",
             rasterize_if_errors_encountered="off",
             extra_query={"trace": "async"},
