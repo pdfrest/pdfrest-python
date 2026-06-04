@@ -1021,7 +1021,7 @@ class _PdfSignatureDisplayModel(BaseModel):
 class _PdfSignatureConfigurationModel(BaseModel):
     type: Literal["new", "existing"]
     name: str | None = None
-    logo_opacity: Annotated[float | None, Field(gt=0, le=1, default=None)] = None
+    logo_opacity: Annotated[float | None, Field(ge=0, le=1, default=None)] = None
     location: _PdfSignatureLocationModel | None = None
     display: _PdfSignatureDisplayModel | None = None
 

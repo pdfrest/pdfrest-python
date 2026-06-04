@@ -527,20 +527,11 @@ def test_live_sign_pdf_logo_opacity_zero_is_allowed(
                 "type": "new",
                 "name": "live-logo-opacity-zero",
                 "location": make_signature_location(),
+                "logo_opacity": 0.0,
             },
             credentials={
                 "pfx": uploaded_pfx_credential,
                 "passphrase": uploaded_passphrase,
-            },
-            extra_body={
-                "signature_configuration": _to_json_string(
-                    {
-                        "type": "new",
-                        "name": "live-logo-opacity-zero",
-                        "location": make_signature_location(),
-                        "logo_opacity": 0.0,
-                    }
-                )
             },
             output="live-logo-opacity-zero",
         )
@@ -669,20 +660,11 @@ async def test_live_async_sign_pdf_logo_opacity_zero_is_allowed(
                 "type": "new",
                 "name": "live-async-logo-opacity-zero",
                 "location": make_signature_location(),
+                "logo_opacity": 0.0,
             },
             credentials={
                 "pfx": uploaded_pfx_credential,
                 "passphrase": uploaded_passphrase,
-            },
-            extra_body={
-                "signature_configuration": _to_json_string(
-                    {
-                        "type": "new",
-                        "name": "live-async-logo-opacity-zero",
-                        "location": make_signature_location(),
-                        "logo_opacity": 0.0,
-                    }
-                )
             },
             output="live-async-logo-opacity-zero",
         )

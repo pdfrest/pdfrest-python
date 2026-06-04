@@ -257,7 +257,7 @@ class PdfNewSignatureConfiguration(TypedDict, total=False):
         type: Must be ``"new"``.
         location: Placement rectangle and page as [PdfSignatureLocation][pdfrest.types.PdfSignatureLocation].
         name: Optional name for the signature field.
-        logo_opacity: Optional logo opacity in the range ``(0, 1]``.
+        logo_opacity: Optional logo opacity in the range ``[0, 1]``.
         display: Optional visible-signature settings as [PdfSignatureDisplay][pdfrest.types.PdfSignatureDisplay].
     """
 
@@ -275,7 +275,7 @@ class PdfExistingSignatureConfiguration(TypedDict, total=False):
         type: Must be ``"existing"``.
         location: Optional placement override as [PdfSignatureLocation][pdfrest.types.PdfSignatureLocation].
         name: Optional existing signature field name.
-        logo_opacity: Optional logo opacity in the range ``(0, 1]``.
+        logo_opacity: Optional logo opacity in the range ``[0, 1]``.
         display: Optional visible-signature settings as [PdfSignatureDisplay][pdfrest.types.PdfSignatureDisplay].
     """
 

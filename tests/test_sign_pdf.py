@@ -773,6 +773,54 @@ def test_sign_pdf_request_customization(
     assert seen == {"post": 1, "get": 1}
 
 
+def test_sign_pdf_allows_zero_logo_opacity_via_public_argument(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate())
+    pfx_file = make_pfx_file(str(PdfRestFileID.generate()))
+    passphrase_file = make_passphrase_file(str(PdfRestFileID.generate()))
+    output_id = str(PdfRestFileID.generate())
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path == "/signed-pdf":
+            payload = json.loads(request.content.decode("utf-8"))
+            signature_payload = json.loads(payload["signature_configuration"])
+            assert signature_payload["logo_opacity"] == pytest.approx(0.0)
+            assert signature_payload["type"] == "new"
+            return httpx.Response(
+                200,
+                json={"inputId": [input_file.id], "outputId": [output_id]},
+            )
+        if request.method == "GET" and request.url.path == f"/resource/{output_id}":
+            return httpx.Response(
+                200,
+                json=build_file_info_payload(
+                    output_id,
+                    "logo-opacity-zero.pdf",
+                    "application/pdf",
+                ),
+            )
+        msg = f"Unexpected request {request.method} {request.url}"
+        raise AssertionError(msg)
+
+    transport = httpx.MockTransport(handler)
+    with PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client:
+        response = client.sign_pdf(
+            input_file,
+            signature_configuration={
+                "type": "new",
+                "name": "visible-zero",
+                "location": make_signature_location(),
+                "logo_opacity": 0.0,
+            },
+            credentials={"pfx": pfx_file, "passphrase": passphrase_file},
+        )
+
+    assert isinstance(response, PdfRestFileBasedResponse)
+    assert response.output_file.name == "logo-opacity-zero.pdf"
+
+
 @pytest.mark.asyncio
 async def test_async_sign_pdf_request_customization(
     monkeypatch: pytest.MonkeyPatch,
@@ -847,6 +895,55 @@ async def test_async_sign_pdf_request_customization(
     else:
         assert timeout_value == pytest.approx(0.5)
     assert seen == {"post": 1, "get": 1}
+
+
+@pytest.mark.asyncio
+async def test_async_sign_pdf_allows_zero_logo_opacity_via_public_argument(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate())
+    pfx_file = make_pfx_file(str(PdfRestFileID.generate()))
+    passphrase_file = make_passphrase_file(str(PdfRestFileID.generate()))
+    output_id = str(PdfRestFileID.generate())
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path == "/signed-pdf":
+            payload = json.loads(request.content.decode("utf-8"))
+            signature_payload = json.loads(payload["signature_configuration"])
+            assert signature_payload["logo_opacity"] == pytest.approx(0.0)
+            assert signature_payload["type"] == "new"
+            return httpx.Response(
+                200,
+                json={"inputId": [input_file.id], "outputId": [output_id]},
+            )
+        if request.method == "GET" and request.url.path == f"/resource/{output_id}":
+            return httpx.Response(
+                200,
+                json=build_file_info_payload(
+                    output_id,
+                    "async-logo-opacity-zero.pdf",
+                    "application/pdf",
+                ),
+            )
+        msg = f"Unexpected request {request.method} {request.url}"
+        raise AssertionError(msg)
+
+    transport = httpx.MockTransport(handler)
+    async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
+        response = await client.sign_pdf(
+            input_file,
+            signature_configuration={
+                "type": "new",
+                "name": "async-visible-zero",
+                "location": make_signature_location(),
+                "logo_opacity": 0.0,
+            },
+            credentials={"pfx": pfx_file, "passphrase": passphrase_file},
+        )
+
+    assert isinstance(response, PdfRestFileBasedResponse)
+    assert response.output_file.name == "async-logo-opacity-zero.pdf"
 
 
 def test_sign_payload_requires_location_when_type_new() -> None:
@@ -988,6 +1085,7 @@ def test_sign_payload_accepts_logo_tuple_sequence() -> None:
 @pytest.mark.parametrize(
     "logo_opacity",
     [
+        pytest.param(0.0, id="zero"),
         pytest.param(0.01, id="min"),
         pytest.param(1.0, id="max"),
     ],
@@ -1016,7 +1114,6 @@ def test_sign_payload_accepts_logo_opacity_bounds(logo_opacity: float) -> None:
 @pytest.mark.parametrize(
     "invalid_logo_opacity",
     [
-        pytest.param(0.0, id="zero"),
         pytest.param(-0.01, id="below-min"),
         pytest.param(1.01, id="above-max"),
     ],
@@ -1030,7 +1127,7 @@ def test_sign_payload_rejects_logo_opacity_out_of_bounds(
 
     with pytest.raises(
         ValidationError,
-        match=r"greater than 0|less than or equal to 1",
+        match=r"greater than or equal to 0|less than or equal to 1",
     ):
         PdfSignPayload.model_validate(
             {
