@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -210,6 +211,44 @@ def test_convert_to_pdfa_request_customization(
         assert timeout_value == pytest.approx(0.33)
 
 
+def test_convert_to_pdfa_normalizes_lowercase_output_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate(1))
+    output_id = str(PdfRestFileID.generate())
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path == "/pdfa":
+            payload = json.loads(request.content.decode("utf-8"))
+            assert payload["output_type"] == "PDF/A-2b"
+            assert payload["id"] == str(input_file.id)
+            return httpx.Response(
+                200,
+                json={"inputId": [input_file.id], "outputId": [output_id]},
+            )
+        if request.method == "GET" and request.url.path == f"/resource/{output_id}":
+            return httpx.Response(
+                200,
+                json=build_file_info_payload(
+                    output_id, "lowercase.pdf", "application/pdf"
+                ),
+            )
+        msg = f"Unexpected request {request.method} {request.url}"
+        raise AssertionError(msg)
+
+    transport = httpx.MockTransport(handler)
+    with PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client:
+        response = client.convert_to_pdfa(
+            input_file,
+            output_type=cast(Any, "pdf/a-2b"),
+        )
+
+    assert isinstance(response, PdfRestFileBasedResponse)
+    assert response.output_file.name == "lowercase.pdf"
+    assert str(response.input_id) == str(input_file.id)
+
+
 @pytest.mark.asyncio
 async def test_async_convert_to_pdfa_request_customization(
     monkeypatch: pytest.MonkeyPatch,
@@ -270,6 +309,45 @@ async def test_async_convert_to_pdfa_request_customization(
         )
     else:
         assert timeout_value == pytest.approx(0.72)
+
+
+@pytest.mark.asyncio
+async def test_async_convert_to_pdfa_normalizes_lowercase_output_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate(2))
+    output_id = str(PdfRestFileID.generate())
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path == "/pdfa":
+            payload = json.loads(request.content.decode("utf-8"))
+            assert payload["output_type"] == "PDF/A-2b"
+            assert payload["id"] == str(input_file.id)
+            return httpx.Response(
+                200,
+                json={"inputId": [input_file.id], "outputId": [output_id]},
+            )
+        if request.method == "GET" and request.url.path == f"/resource/{output_id}":
+            return httpx.Response(
+                200,
+                json=build_file_info_payload(
+                    output_id, "async-lowercase.pdf", "application/pdf"
+                ),
+            )
+        msg = f"Unexpected request {request.method} {request.url}"
+        raise AssertionError(msg)
+
+    transport = httpx.MockTransport(handler)
+    async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
+        response = await client.convert_to_pdfa(
+            input_file,
+            output_type=cast(Any, "pdf/a-2b"),
+        )
+
+    assert isinstance(response, PdfRestFileBasedResponse)
+    assert response.output_file.name == "async-lowercase.pdf"
+    assert str(response.input_id) == str(input_file.id)
 
 
 def test_convert_to_pdfa_validation(monkeypatch: pytest.MonkeyPatch) -> None:

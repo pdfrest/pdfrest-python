@@ -257,7 +257,7 @@ class PdfNewSignatureConfiguration(TypedDict, total=False):
         type: Must be ``"new"``.
         location: Placement rectangle and page as [PdfSignatureLocation][pdfrest.types.PdfSignatureLocation].
         name: Optional name for the signature field.
-        logo_opacity: Optional logo opacity in the range ``(0, 1]``.
+        logo_opacity: Optional logo opacity in the range ``[0, 1]``.
         display: Optional visible-signature settings as [PdfSignatureDisplay][pdfrest.types.PdfSignatureDisplay].
     """
 
@@ -275,7 +275,7 @@ class PdfExistingSignatureConfiguration(TypedDict, total=False):
         type: Must be ``"existing"``.
         location: Optional placement override as [PdfSignatureLocation][pdfrest.types.PdfSignatureLocation].
         name: Optional existing signature field name.
-        logo_opacity: Optional logo opacity in the range ``(0, 1]``.
+        logo_opacity: Optional logo opacity in the range ``[0, 1]``.
         display: Optional visible-signature settings as [PdfSignatureDisplay][pdfrest.types.PdfSignatureDisplay].
     """
 
@@ -323,7 +323,9 @@ class PdfPemCredentials(TypedDict):
 #: [AsyncPdfRestClient.sign_pdf][pdfrest.AsyncPdfRestClient.sign_pdf].
 PdfSignatureCredentials = PdfPfxCredentials | PdfPemCredentials
 
-#: PDF/A conformance targets accepted by ``convert_to_pdfa``.
+#: Canonical PDF/A conformance targets accepted by ``convert_to_pdfa``.
+#: Payload validation accepts case-insensitive string input and normalizes it
+#: to one of these literals before serialization.
 PdfAType = Literal["PDF/A-1b", "PDF/A-2b", "PDF/A-2u", "PDF/A-3b", "PDF/A-3u"]
 #: PDF/X conformance targets accepted by ``convert_to_pdfx``.
 PdfXType = Literal["PDF/X-1a", "PDF/X-3", "PDF/X-4", "PDF/X-6"]

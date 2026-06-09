@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast, get_args
+from typing import Any, cast, get_args
 
 import pytest
 
@@ -101,6 +101,28 @@ def test_live_convert_to_pdfa_with_rasterize_option(
     assert str(response.input_id) == str(uploaded_pdf_for_pdfa.id)
 
 
+def test_live_convert_to_pdfa_accepts_lowercase_output_type(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_pdfa: PdfRestFile,
+) -> None:
+    with PdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        response = client.convert_to_pdfa(
+            uploaded_pdf_for_pdfa,
+            output_type=cast(Any, "pdf/a-2b"),
+            output="pdfa-lowercase",
+        )
+
+    assert response.output_files
+    output_file = response.output_file
+    assert output_file.name.startswith("pdfa-lowercase")
+    assert output_file.type == "application/pdf"
+    assert str(response.input_id) == str(uploaded_pdf_for_pdfa.id)
+
+
 @pytest.mark.asyncio
 async def test_live_async_convert_to_pdfa_with_rasterize_option(
     pdfrest_api_key: str,
@@ -125,12 +147,34 @@ async def test_live_async_convert_to_pdfa_with_rasterize_option(
     assert str(response.input_id) == str(uploaded_pdf_for_pdfa.id)
 
 
+@pytest.mark.asyncio
+async def test_live_async_convert_to_pdfa_accepts_lowercase_output_type(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_pdfa: PdfRestFile,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        response = await client.convert_to_pdfa(
+            uploaded_pdf_for_pdfa,
+            output_type=cast(Any, "pdf/a-2b"),
+            output="async-pdfa-lowercase",
+        )
+
+    assert response.output_files
+    output_file = response.output_file
+    assert output_file.name.startswith("async-pdfa-lowercase")
+    assert output_file.type == "application/pdf"
+    assert str(response.input_id) == str(uploaded_pdf_for_pdfa.id)
+
+
 @pytest.mark.parametrize(
     "invalid_output_type",
     [
         pytest.param("PDF/A-0", id="pdfa-0"),
         pytest.param("PDF/A-99", id="pdfa-99"),
-        pytest.param("pdf/a-2b", id="lowercase"),
     ],
 )
 def test_live_convert_to_pdfa_invalid_output_type(
@@ -159,7 +203,6 @@ def test_live_convert_to_pdfa_invalid_output_type(
     [
         pytest.param("PDF/A-0", id="pdfa-0"),
         pytest.param("PDF/A-99", id="pdfa-99"),
-        pytest.param("pdf/a-2b", id="lowercase"),
     ],
 )
 async def test_live_async_convert_to_pdfa_invalid_output_type(
