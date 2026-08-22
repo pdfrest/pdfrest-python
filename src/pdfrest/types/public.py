@@ -173,7 +173,7 @@ PdfContentStructureType = Literal[
 
 
 class PdfAddLineObject(TypedDict, total=False):
-    """Line shape inserted by [PdfRestClient.add_shapes_to_pdf][]."""
+    """Line shape inserted by [pdfrest.PdfRestClient.add_shapes_to_pdf][]."""
 
     type: Required[Literal["line"]]
     page: Required[Literal["all"] | int]
@@ -191,7 +191,7 @@ class PdfAddLineObject(TypedDict, total=False):
 
 
 class PdfAddRectangleObject(TypedDict, total=False):
-    """Rectangle shape inserted by [PdfRestClient.add_shapes_to_pdf][]."""
+    """Rectangle shape inserted by [pdfrest.PdfRestClient.add_shapes_to_pdf][]."""
 
     type: Required[Literal["rectangle"]]
     page: Required[Literal["all"] | int]
