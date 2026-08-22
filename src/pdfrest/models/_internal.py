@@ -29,6 +29,7 @@ from ..types import (
     HtmlWebLayout,
     OcrLanguage,
     PdfAType,
+    PdfContentStructureType,
     PdfConversionCompression,
     PdfConversionDownsample,
     PdfConversionLocale,
@@ -238,6 +239,10 @@ def _serialize_text_objects(value: list[BaseModel]) -> str:
         for entry in value
     ]
     return to_json(payload).decode()
+
+
+def _serialize_shape_objects(value: list[BaseModel]) -> list[dict[str, Any]]:
+    return [entry.model_dump(mode="json", exclude_none=True) for entry in value]
 
 
 def _serialize_signature_configuration(
@@ -1826,6 +1831,148 @@ class PdfAddTextPayload(BaseModel):
         Field(serialization_alias="output", min_length=1, default=None),
         AfterValidator(_validate_output_prefix),
     ] = None
+
+
+class _PdfAddedShapeBaseModel(BaseModel):
+    """Shared validation and serialization for shapes added to PDFs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    page: Annotated[
+        Literal["all"] | Annotated[int, Field(ge=1)],
+        Field(serialization_alias="page"),
+    ]
+    opacity: Annotated[
+        float | None,
+        Field(serialization_alias="opacity", ge=0.0, le=1.0, default=None),
+    ] = None
+    stroke_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(serialization_alias="stroke_color_rgb", default=None),
+        BeforeValidator(_split_comma_string),
+        PlainSerializer(_serialize_as_comma_separated_string),
+    ] = None
+    stroke_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(serialization_alias="stroke_color_cmyk", default=None),
+        BeforeValidator(_split_comma_string),
+        PlainSerializer(_serialize_as_comma_separated_string),
+    ] = None
+    stroke_width: Annotated[
+        float | None,
+        Field(serialization_alias="stroke_width", gt=0, default=None),
+    ] = None
+    tag_actual_text: Annotated[
+        str | None,
+        Field(serialization_alias="tag_actual_text", min_length=1, default=None),
+    ] = None
+    tag_is_artifact: Annotated[
+        bool | None,
+        Field(serialization_alias="tag_is_artifact", default=None),
+    ] = None
+    tag_structure_type: Annotated[
+        PdfContentStructureType | None,
+        Field(serialization_alias="tag_structure_type", default=None),
+    ] = None
+
+    @model_validator(mode="after")
+    def _ensure_single_stroke_color_option(self) -> _PdfAddedShapeBaseModel:
+        if self.stroke_color_rgb is not None and self.stroke_color_cmyk is not None:
+            msg = "Provide only one of stroke_color_rgb or stroke_color_cmyk."
+            raise ValueError(msg)
+        return self
+
+
+class PdfAddedLineObjectModel(_PdfAddedShapeBaseModel):
+    """Adapt a line shape into the pdfRest JSON request contract."""
+
+    type: Literal["line"]
+    x1: Annotated[float, Field(ge=0, serialization_alias="x1")]
+    y1: Annotated[float, Field(ge=0, serialization_alias="y1")]
+    x2: Annotated[float, Field(ge=0, serialization_alias="x2")]
+    y2: Annotated[float, Field(ge=0, serialization_alias="y2")]
+
+
+class PdfAddedRectangleObjectModel(_PdfAddedShapeBaseModel):
+    """Adapt a rectangle shape into the pdfRest JSON request contract."""
+
+    type: Literal["rectangle"]
+    x: Annotated[float, Field(ge=0, serialization_alias="x")]
+    y: Annotated[float, Field(ge=0, serialization_alias="y")]
+    width: Annotated[float, Field(gt=0, serialization_alias="width")]
+    height: Annotated[float, Field(gt=0, serialization_alias="height")]
+    fill_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(serialization_alias="fill_color_rgb", default=None),
+        BeforeValidator(_split_comma_string),
+        PlainSerializer(_serialize_as_comma_separated_string),
+    ] = None
+    fill_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(serialization_alias="fill_color_cmyk", default=None),
+        BeforeValidator(_split_comma_string),
+        PlainSerializer(_serialize_as_comma_separated_string),
+    ] = None
+
+    @model_validator(mode="after")
+    def _ensure_single_fill_color_option(self) -> PdfAddedRectangleObjectModel:
+        if self.fill_color_rgb is not None and self.fill_color_cmyk is not None:
+            msg = "Provide only one of fill_color_rgb or fill_color_cmyk."
+            raise ValueError(msg)
+        return self
+
+
+PdfAddedShapeObjectModel = Annotated[
+    PdfAddedLineObjectModel | PdfAddedRectangleObjectModel,
+    Field(discriminator="type"),
+]
+
+
+class PdfAddShapesPayload(BaseModel):
+    """Adapt caller shape options into a pdfRest-ready add-shapes request payload."""
+
+    files: Annotated[
+        list[PdfRestFile],
+        Field(
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("file", "files"),
+            serialization_alias="id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    shape_objects: Annotated[
+        list[PdfAddedShapeObjectModel],
+        Field(serialization_alias="shape_objects", min_length=1),
+        BeforeValidator(_ensure_list),
+        PlainSerializer(_serialize_shape_objects),
+    ]
+    tag_enabled: Annotated[
+        bool | None,
+        Field(serialization_alias="tag_enabled", default=None),
+    ] = None
+    output: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+    @model_validator(mode="after")
+    def _require_tagging_for_shape_metadata(self) -> PdfAddShapesPayload:
+        has_tag_metadata = any(
+            shape.tag_actual_text is not None
+            or shape.tag_is_artifact is not None
+            or shape.tag_structure_type is not None
+            for shape in self.shape_objects
+        )
+        if has_tag_metadata and self.tag_enabled is not True:
+            msg = "tag_enabled must be true when tag options are provided."
+            raise ValueError(msg)
+        return self
 
 
 class PdfAddImagePayload(BaseModel):
