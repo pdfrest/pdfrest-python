@@ -81,7 +81,8 @@ Use this group to add visible content or remove sensitive content.
 
 - Add overlays:
   [add_text_to_pdf][pdfrest.PdfRestClient.add_text_to_pdf],
-  [add_image_to_pdf][pdfrest.PdfRestClient.add_image_to_pdf]
+  [add_image_to_pdf][pdfrest.PdfRestClient.add_image_to_pdf],
+  [add_shapes_to_pdf][pdfrest.PdfRestClient.add_shapes_to_pdf]
 - Watermarking:
   [watermark_pdf_with_text][pdfrest.PdfRestClient.watermark_pdf_with_text],
   [watermark_pdf_with_image][pdfrest.PdfRestClient.watermark_pdf_with_image]
