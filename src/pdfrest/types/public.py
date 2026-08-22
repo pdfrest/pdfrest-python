@@ -29,9 +29,13 @@ __all__ = (
     "JpegColorModel",
     "OcrLanguage",
     "PdfAType",
+    "PdfAddLineObject",
+    "PdfAddRectangleObject",
+    "PdfAddShapeObject",
     "PdfAddTextObject",
     "PdfCMYKColor",
     "PdfColorProfile",
+    "PdfContentStructureType",
     "PdfConversionCompression",
     "PdfConversionDownsample",
     "PdfConversionLocale",
@@ -136,6 +140,77 @@ class PdfRedactionInstruction(TypedDict):
 PdfCMYKColor = tuple[int, int, int, int]
 PdfRGBColor = tuple[int, int, int]
 PdfTextColor = PdfRGBColor | PdfCMYKColor
+
+PdfContentStructureType = Literal[
+    "P",
+    "H",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "Lbl",
+    "Span",
+    "Quote",
+    "Note",
+    "Reference",
+    "BibEntry",
+    "Code",
+    "Link",
+    "Annot",
+    "Ruby",
+    "RB",
+    "RT",
+    "RP",
+    "Warichu",
+    "WT",
+    "WP",
+    "Figure",
+    "Formula",
+    "Form",
+]
+
+
+class PdfAddLineObject(TypedDict, total=False):
+    """Line shape inserted by [PdfRestClient.add_shapes_to_pdf][]."""
+
+    type: Required[Literal["line"]]
+    page: Required[Literal["all"] | int]
+    x1: Required[float]
+    y1: Required[float]
+    x2: Required[float]
+    y2: Required[float]
+    stroke_color_rgb: PdfRGBColor | str
+    stroke_color_cmyk: PdfCMYKColor | str
+    stroke_width: float
+    opacity: float
+    tag_actual_text: str
+    tag_is_artifact: bool
+    tag_structure_type: PdfContentStructureType
+
+
+class PdfAddRectangleObject(TypedDict, total=False):
+    """Rectangle shape inserted by [PdfRestClient.add_shapes_to_pdf][]."""
+
+    type: Required[Literal["rectangle"]]
+    page: Required[Literal["all"] | int]
+    x: Required[float]
+    y: Required[float]
+    width: Required[float]
+    height: Required[float]
+    fill_color_rgb: PdfRGBColor | str
+    fill_color_cmyk: PdfCMYKColor | str
+    stroke_color_rgb: PdfRGBColor | str
+    stroke_color_cmyk: PdfCMYKColor | str
+    stroke_width: float
+    opacity: float
+    tag_actual_text: str
+    tag_is_artifact: bool
+    tag_structure_type: PdfContentStructureType
+
+
+PdfAddShapeObject = PdfAddLineObject | PdfAddRectangleObject
 
 
 class PdfAddTextObject(TypedDict, total=False):

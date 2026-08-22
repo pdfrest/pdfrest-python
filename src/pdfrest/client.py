@@ -91,6 +91,7 @@ from .models._internal import (
     OcrPdfPayload,
     PdfAddAttachmentPayload,
     PdfAddImagePayload,
+    PdfAddShapesPayload,
     PdfAddTextPayload,
     PdfBlankPayload,
     PdfCompressPayload,
@@ -144,6 +145,7 @@ from .types import (
     HtmlWebLayout,
     JpegColorModel,
     OcrLanguage,
+    PdfAddShapeObject,
     PdfAddTextObject,
     PdfAType,
     PdfConversionCompression,
@@ -3453,6 +3455,59 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def add_shapes_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        shape_objects: PdfAddShapeObject | Sequence[PdfAddShapeObject],
+        tag_enabled: bool | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Draw one or more lines or rectangles onto a PDF.
+
+        Coordinates use PDF units with the origin in the lower-left corner.
+        Set ``tag_enabled=True`` when any shape includes tagging metadata.
+
+        Args:
+            file: Uploaded PDF file as a `PdfRestFile` object.
+            shape_objects: Line or rectangle objects to draw onto the document.
+            tag_enabled: Enable tagging for newly added shapes.
+            output: Output filename prefix used by pdfRest when creating files.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response returned by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "shape_objects": shape_objects,
+        }
+        if tag_enabled is not None:
+            payload["tag_enabled"] = tag_enabled
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/pdf-with-added-shapes",
+            payload=payload,
+            payload_model=PdfAddShapesPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def add_image_to_pdf(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -6442,6 +6497,59 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/pdf-with-added-text",
             payload=payload,
             payload_model=PdfAddTextPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def add_shapes_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        shape_objects: PdfAddShapeObject | Sequence[PdfAddShapeObject],
+        tag_enabled: bool | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronous variant of [PdfRestClient.add_shapes_to_pdf][pdfrest.PdfRestClient.add_shapes_to_pdf].
+
+        Coordinates use PDF units with the origin in the lower-left corner.
+        Set ``tag_enabled=True`` when any shape includes tagging metadata.
+
+        Args:
+            file: Uploaded PDF file as a `PdfRestFile` object.
+            shape_objects: Line or rectangle objects to draw onto the document.
+            tag_enabled: Enable tagging for newly added shapes.
+            output: Output filename prefix used by pdfRest when creating files.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response returned by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "shape_objects": shape_objects,
+        }
+        if tag_enabled is not None:
+            payload["tag_enabled"] = tag_enabled
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/pdf-with-added-shapes",
+            payload=payload,
+            payload_model=PdfAddShapesPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
