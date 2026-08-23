@@ -28,7 +28,7 @@ def _line() -> dict[str, object]:
         "y1": 576,
         "x2": 540,
         "y2": 576,
-        "stroke_color_rgb": (26, 72, 112),
+        "stroke_color": (26, 72, 112),
         "stroke_width": 1.5,
     }
 
@@ -41,9 +41,23 @@ def _rectangle() -> dict[str, object]:
         "y": 540,
         "width": 504,
         "height": 108,
-        "fill_color_cmyk": (0, 0, 0, 12),
+        "fill_color": (0, 0, 0, 12),
         "opacity": 0.75,
     }
+
+
+def _server_line() -> dict[str, object]:
+    line = _line()
+    line["stroke_color_rgb"] = "26,72,112"
+    del line["stroke_color"]
+    return line
+
+
+def _server_rectangle() -> dict[str, object]:
+    rectangle = _rectangle()
+    rectangle["fill_color_cmyk"] = "0,0,0,12"
+    del rectangle["fill_color"]
+    return rectangle
 
 
 def test_live_add_shapes_to_pdf(
@@ -116,9 +130,8 @@ def test_live_add_shapes_to_pdf_invalid_page(
             extra_body={
                 "shape_objects": [
                     {
-                        **_line(),
+                        **_server_line(),
                         "page": 0,
-                        "stroke_color_rgb": "26,72,112",
                     }
                 ]
             },
@@ -142,9 +155,8 @@ async def test_live_async_add_shapes_to_pdf_invalid_page(
                 extra_body={
                     "shape_objects": [
                         {
-                            **_rectangle(),
+                            **_server_rectangle(),
                             "page": 0,
-                            "fill_color_cmyk": "0,0,0,12",
                         }
                     ]
                 },

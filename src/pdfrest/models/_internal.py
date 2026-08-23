@@ -136,8 +136,9 @@ def _split_comma_string(value: Any) -> list[Any] | None:
     raise ValueError(msg)
 
 
-def _route_text_color_by_channel_count(
+def _route_color_by_channel_count(
     *,
+    color_name: str,
     expected_channel_count: int,
     alternate_channel_count: int,
 ) -> Callable[[Any], list[Any] | None]:
@@ -149,7 +150,7 @@ def _route_text_color_by_channel_count(
             return channels
         if len(channels) == alternate_channel_count:
             return None
-        msg = "text_color must include exactly 3 (RGB) or 4 (CMYK) values."
+        msg = f"{color_name} must include exactly 3 (RGB) or 4 (CMYK) values."
         raise ValueError(msg)
 
     return _validator
@@ -1848,14 +1849,34 @@ class _PdfAddedShapeBaseModel(BaseModel):
     ] = None
     stroke_color_rgb: Annotated[
         tuple[RgbChannel, RgbChannel, RgbChannel] | None,
-        Field(serialization_alias="stroke_color_rgb", default=None),
-        BeforeValidator(_split_comma_string),
+        Field(
+            validation_alias="stroke_color",
+            serialization_alias="stroke_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="stroke_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
         PlainSerializer(_serialize_as_comma_separated_string),
     ] = None
     stroke_color_cmyk: Annotated[
         tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
-        Field(serialization_alias="stroke_color_cmyk", default=None),
-        BeforeValidator(_split_comma_string),
+        Field(
+            validation_alias="stroke_color",
+            serialization_alias="stroke_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="stroke_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
         PlainSerializer(_serialize_as_comma_separated_string),
     ] = None
     stroke_width: Annotated[
@@ -1874,13 +1895,6 @@ class _PdfAddedShapeBaseModel(BaseModel):
         PdfContentStructureType | None,
         Field(serialization_alias="tag_structure_type", default=None),
     ] = None
-
-    @model_validator(mode="after")
-    def _ensure_single_stroke_color_option(self) -> _PdfAddedShapeBaseModel:
-        if self.stroke_color_rgb is not None and self.stroke_color_cmyk is not None:
-            msg = "Provide only one of stroke_color_rgb or stroke_color_cmyk."
-            raise ValueError(msg)
-        return self
 
 
 class PdfAddedLineObjectModel(_PdfAddedShapeBaseModel):
@@ -1903,23 +1917,36 @@ class PdfAddedRectangleObjectModel(_PdfAddedShapeBaseModel):
     height: Annotated[float, Field(gt=0, serialization_alias="height")]
     fill_color_rgb: Annotated[
         tuple[RgbChannel, RgbChannel, RgbChannel] | None,
-        Field(serialization_alias="fill_color_rgb", default=None),
-        BeforeValidator(_split_comma_string),
+        Field(
+            validation_alias="fill_color",
+            serialization_alias="fill_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="fill_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
         PlainSerializer(_serialize_as_comma_separated_string),
     ] = None
     fill_color_cmyk: Annotated[
         tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
-        Field(serialization_alias="fill_color_cmyk", default=None),
-        BeforeValidator(_split_comma_string),
+        Field(
+            validation_alias="fill_color",
+            serialization_alias="fill_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="fill_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
         PlainSerializer(_serialize_as_comma_separated_string),
     ] = None
-
-    @model_validator(mode="after")
-    def _ensure_single_fill_color_option(self) -> PdfAddedRectangleObjectModel:
-        if self.fill_color_rgb is not None and self.fill_color_cmyk is not None:
-            msg = "Provide only one of fill_color_rgb or fill_color_cmyk."
-            raise ValueError(msg)
-        return self
 
 
 PdfAddedShapeObjectModel = Annotated[
@@ -2110,7 +2137,8 @@ class PdfTextWatermarkPayload(_BasePdfWatermarkPayload):
             default=None,
         ),
         BeforeValidator(
-            _route_text_color_by_channel_count(
+            _route_color_by_channel_count(
+                color_name="text_color",
                 expected_channel_count=3,
                 alternate_channel_count=4,
             )
@@ -2125,7 +2153,8 @@ class PdfTextWatermarkPayload(_BasePdfWatermarkPayload):
             default=None,
         ),
         BeforeValidator(
-            _route_text_color_by_channel_count(
+            _route_color_by_channel_count(
+                color_name="text_color",
                 expected_channel_count=4,
                 alternate_channel_count=3,
             )
