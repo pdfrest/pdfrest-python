@@ -275,12 +275,14 @@ async def test_async_add_shapes_to_pdf_request_customization(
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
     pdf_file = make_pdf_file(PdfRestFileID.generate(1))
     output_id = str(PdfRestFileID.generate())
+    captured_timeout: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST" and request.url.path == "/pdf-with-added-shapes":
             assert request.url.params["trace"] == "true"
             assert request.headers["X-Test"] == "async"
             assert json.loads(request.content)["output"] == "async-custom-shapes"
+            captured_timeout["value"] = request.extensions.get("timeout")
             return httpx.Response(
                 200, json={"inputId": [pdf_file.id], "outputId": [output_id]}
             )
@@ -309,6 +311,14 @@ async def test_async_add_shapes_to_pdf_request_customization(
         )
 
     assert response.output_file.name == "async-custom-shapes.pdf"
+    timeout_value = captured_timeout["value"]
+    assert timeout_value is not None
+    if isinstance(timeout_value, dict):
+        assert all(
+            component == pytest.approx(1.0) for component in timeout_value.values()
+        )
+    else:
+        assert timeout_value == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize(
@@ -382,3 +392,159 @@ async def test_async_add_shapes_to_pdf_rejects_non_pdf(
                 make_image_file(PdfRestFileID.generate(1)),
                 shape_objects=make_line(),
             )
+
+
+def test_add_shapes_to_pdf_rejects_non_pdf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        pytest.fail("Request should not be sent when validation fails.")
+
+    with (
+        PdfRestClient(
+            api_key=VALID_API_KEY, transport=httpx.MockTransport(handler)
+        ) as client,
+        pytest.raises(ValidationError, match="Must be a PDF file"),
+    ):
+        client.add_shapes_to_pdf(
+            make_image_file(PdfRestFileID.generate(1)),
+            shape_objects=make_line(),
+        )
+
+
+def test_add_shapes_to_pdf_rejects_multiple_input_files(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        pytest.fail("Request should not be sent when validation fails.")
+
+    with (
+        PdfRestClient(
+            api_key=VALID_API_KEY, transport=httpx.MockTransport(handler)
+        ) as client,
+        pytest.raises(ValidationError, match="at most 1 item"),
+    ):
+        client.add_shapes_to_pdf(
+            [
+                make_pdf_file(PdfRestFileID.generate(1)),
+                make_pdf_file(PdfRestFileID.generate(2)),
+            ],
+            shape_objects=make_line(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_async_add_shapes_to_pdf_rejects_multiple_input_files(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        pytest.fail("Request should not be sent when validation fails.")
+
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        with pytest.raises(ValidationError, match="at most 1 item"):
+            await client.add_shapes_to_pdf(
+                [
+                    make_pdf_file(PdfRestFileID.generate(1)),
+                    make_pdf_file(PdfRestFileID.generate(2)),
+                ],
+                shape_objects=make_line(),
+            )
+
+
+@pytest.mark.parametrize(
+    ("shape", "match"),
+    [
+        pytest.param(make_line(x1=-1), "greater than or equal to 0", id="x1-below"),
+        pytest.param(make_line(y2=-1), "greater than or equal to 0", id="y2-below"),
+        pytest.param(make_line(page=0), "greater than or equal to 1", id="page-below"),
+        pytest.param(
+            make_line(opacity=-0.01), "greater than or equal to 0", id="opacity-below"
+        ),
+        pytest.param(
+            make_line(opacity=1.01), "less than or equal to 1", id="opacity-above"
+        ),
+        pytest.param(
+            make_line(stroke_width=0), "greater than 0", id="stroke-width-zero"
+        ),
+        pytest.param(
+            make_line(stroke_color_rgb=(-1, 0, 0)),
+            "greater than or equal to 0",
+            id="rgb-below",
+        ),
+        pytest.param(
+            make_line(stroke_color_rgb=(256, 0, 0)),
+            "less than or equal to 255",
+            id="rgb-above",
+        ),
+        pytest.param(make_rectangle(width=0), "greater than 0", id="width-zero"),
+        pytest.param(make_rectangle(height=0), "greater than 0", id="height-zero"),
+        pytest.param(
+            make_rectangle(fill_color_cmyk=(-1, 0, 0, 0)),
+            "greater than or equal to 0",
+            id="cmyk-below",
+        ),
+        pytest.param(
+            make_rectangle(fill_color_cmyk=(101, 0, 0, 0)),
+            "less than or equal to 100",
+            id="cmyk-above",
+        ),
+    ],
+)
+def test_add_shapes_payload_rejects_out_of_range_values(
+    shape: dict[str, object],
+    match: str,
+) -> None:
+    with pytest.raises(ValidationError, match=match):
+        PdfAddShapesPayload.model_validate(
+            {
+                "files": make_pdf_file(PdfRestFileID.generate(1)),
+                "shape_objects": shape,
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        pytest.param(
+            make_line(
+                page=1,
+                x1=0,
+                y1=0,
+                x2=0,
+                y2=0,
+                opacity=0,
+                stroke_color_rgb=(0, 255, 0),
+            ),
+            id="line-lower-bounds",
+        ),
+        pytest.param(
+            make_rectangle(
+                x=0,
+                y=0,
+                width=0.01,
+                height=0.01,
+                opacity=1,
+                fill_color_cmyk=(0, 100, 0, 100),
+            ),
+            id="rectangle-upper-bounds",
+        ),
+    ],
+)
+def test_add_shapes_payload_accepts_boundary_values(shape: dict[str, object]) -> None:
+    payload = PdfAddShapesPayload.model_validate(
+        {
+            "files": make_pdf_file(PdfRestFileID.generate(1)),
+            "shape_objects": shape,
+        }
+    )
+
+    assert payload.shape_objects[0].model_dump(mode="json", exclude_none=True)
