@@ -115,6 +115,17 @@ Follow `TESTING_GUIDELINES.md` and the live-test requirements in `AGENTS.md`.
 - Cover default and non-default options, accepted literals, numeric bounds,
   MIME/cardinality/dependency rules, and every meaningful response attribute.
   Extend a shared validation suite when a rule applies to a model family.
+- For a payload containing a discriminated JSON-object union, add a direct
+  serialization assertion for every discriminator and distinct sync/async client
+  tests that send each form. Parameterize all `ge`/`gt`/`le`/`lt` constraints at
+  their legal boundaries and immediately-invalid neighbors. Test MIME and
+  one-resource cardinality failures through both clients with a transport that
+  fails if a request is attempted. In both timeout-customization tests, capture
+  `request.extensions["timeout"]` and assert every component.
+- When optional per-object metadata requires a request-level flag, cover both
+  the valid dependency combination and the locally rejected missing/false flag;
+  use `extra_body` in live tests to verify an invalid combination reaches the
+  server and raises the expected API exception.
 - Live tests upload deterministic fixtures first, execute with the returned
   `PdfRestFile` resources, and assert IDs, filenames, MIME types, output count,
   warnings, and endpoint-specific behavior. Use `extra_body` or `extra_query` to

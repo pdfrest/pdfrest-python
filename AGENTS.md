@@ -229,6 +229,15 @@
   assertion through `PdfRestClient` and `AsyncPdfRestClient` so sync/async
   behaviour stays independently verifiable.
 
+- For endpoints that accept discriminated JSON objects, test every discriminator
+  through both client transports and assert the model's exact JSON-ready
+  serialization directly. Parameterize each constrained field at its accepted
+  boundaries and immediately outside them; test MIME and single-resource
+  cardinality failures through both transports with a transport that fails if
+  local validation does not short-circuit. When a helper accepts `timeout`,
+  capture `request.extensions["timeout"]` in both customization tests and assert
+  every timeout component.
+
 - When endpoints may raise `PdfRestErrorGroup` (or any future pdfRest-specific
   exception groups), assert them with `pytest.RaisesGroup`/`pytest.RaisesExc`,
   and use the `check=` hook to confirm the outer group is the expected class so
