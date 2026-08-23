@@ -168,6 +168,12 @@
   remain the default approach. Add custom validators only when they provide
   behavior native constraints cannot (for example, parsing alternate wire
   formats or enforcing cross-field dependencies).
+- When pdfRest exposes separate RGB/CMYK wire fields for one semantic color,
+  expose one public `<name>_color: PdfColor` input instead of separate
+  `<name>_color_rgb`/`<name>_color_cmyk` inputs. Use a channel-count
+  `BeforeValidator` with shared `validation_alias` and distinct serialization
+  aliases to route three channels to RGB and four to CMYK; keep those wire-field
+  names internal to the payload model.
 - Keep `BeforeValidator`/`AfterValidator` helpers and field serializers short
   and shape-focused. They should primarily adapt nonconforming inputs or handle
   pdfRest wire quirks (for example, splitting comma-separated values or

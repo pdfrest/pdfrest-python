@@ -85,6 +85,12 @@ validation and turns them into the exact pdfRest wire contract.
 - Use `validation_alias` for accepted SDK input names and `serialization_alias`
   for the server field name. Serialize uploaded `PdfRestFile` values to the
   required ID field with the existing serializers.
+- When one semantic color is represented by separate RGB/CMYK wire fields,
+  expose a single public `<name>_color: PdfColor` input. Route it by tuple
+  channel count with a `BeforeValidator` on internal RGB/CMYK fields that share
+  the public `validation_alias` but have distinct serialization aliases. Do not
+  expose the server's `*_rgb` or `*_cmyk` field names in public methods or
+  TypedDicts.
 - Validate MIME types and resource cardinality before a request. For payload
   validation failures, raise Pydantic `ValidationError` via `ValueError` or
   `AssertionError`, not `TypeError`.
@@ -112,6 +118,9 @@ Follow `TESTING_GUIDELINES.md` and the live-test requirements in `AGENTS.md`.
   if called.
 - Test payload models directly as well as client methods: accepted ergonomic
   shapes and the exact alias-based serialization must both be covered.
+- For unified color inputs, assert RGB and CMYK tuples each serialize to only
+  their corresponding wire field, and reject unsupported channel counts before a
+  request is sent.
 - Cover default and non-default options, accepted literals, numeric bounds,
   MIME/cardinality/dependency rules, and every meaningful response attribute.
   Extend a shared validation suite when a rule applies to a model family.
