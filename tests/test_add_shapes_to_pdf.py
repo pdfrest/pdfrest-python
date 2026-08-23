@@ -28,7 +28,7 @@ def make_line(**overrides: object) -> dict[str, object]:
         "y1": 576,
         "x2": 540,
         "y2": 576,
-        "stroke_color_rgb": (26, 72, 112),
+        "stroke_color": (26, 72, 112),
         "stroke_width": 1.5,
     }
     line.update(overrides)
@@ -43,7 +43,7 @@ def make_rectangle(**overrides: object) -> dict[str, object]:
         "y": 540,
         "width": 504,
         "height": 108,
-        "fill_color_cmyk": (0, 0, 0, 12),
+        "fill_color": (0, 0, 0, 12),
         "opacity": 0.75,
     }
     rectangle.update(overrides)
@@ -201,8 +201,7 @@ async def test_async_add_shapes_to_pdf_success(monkeypatch: pytest.MonkeyPatch) 
                 y=20,
                 width=30,
                 height=40,
-                fill_color_rgb=(245, 247, 250),
-                fill_color_cmyk=None,
+                fill_color=(245, 247, 250),
                 opacity=None,
                 tag_actual_text="Decorative panel",
                 tag_structure_type="Figure",
@@ -326,16 +325,16 @@ async def test_async_add_shapes_to_pdf_request_customization(
     [
         pytest.param([], None, "at least 1 item", id="empty-shapes"),
         pytest.param(
-            make_line(stroke_color_cmyk=(0, 0, 0, 100)),
+            make_line(stroke_color=(0, 0)),
             None,
-            re.escape("Provide only one of stroke_color_rgb or stroke_color_cmyk."),
-            id="line-color-conflict",
+            re.escape("stroke_color must include exactly 3 (RGB) or 4 (CMYK) values."),
+            id="line-color-channel-count",
         ),
         pytest.param(
-            make_rectangle(fill_color_rgb=(255, 255, 255)),
+            make_rectangle(fill_color=(0, 0)),
             None,
-            re.escape("Provide only one of fill_color_rgb or fill_color_cmyk."),
-            id="rectangle-color-conflict",
+            re.escape("fill_color must include exactly 3 (RGB) or 4 (CMYK) values."),
+            id="rectangle-color-channel-count",
         ),
         pytest.param(
             make_rectangle(width=0),
@@ -475,24 +474,24 @@ async def test_async_add_shapes_to_pdf_rejects_multiple_input_files(
             make_line(stroke_width=0), "greater than 0", id="stroke-width-zero"
         ),
         pytest.param(
-            make_line(stroke_color_rgb=(-1, 0, 0)),
+            make_line(stroke_color=(-1, 0, 0)),
             "greater than or equal to 0",
             id="rgb-below",
         ),
         pytest.param(
-            make_line(stroke_color_rgb=(256, 0, 0)),
+            make_line(stroke_color=(256, 0, 0)),
             "less than or equal to 255",
             id="rgb-above",
         ),
         pytest.param(make_rectangle(width=0), "greater than 0", id="width-zero"),
         pytest.param(make_rectangle(height=0), "greater than 0", id="height-zero"),
         pytest.param(
-            make_rectangle(fill_color_cmyk=(-1, 0, 0, 0)),
+            make_rectangle(fill_color=(-1, 0, 0, 0)),
             "greater than or equal to 0",
             id="cmyk-below",
         ),
         pytest.param(
-            make_rectangle(fill_color_cmyk=(101, 0, 0, 0)),
+            make_rectangle(fill_color=(101, 0, 0, 0)),
             "less than or equal to 100",
             id="cmyk-above",
         ),
@@ -522,7 +521,7 @@ def test_add_shapes_payload_rejects_out_of_range_values(
                 x2=0,
                 y2=0,
                 opacity=0,
-                stroke_color_rgb=(0, 255, 0),
+                stroke_color=(0, 255, 0),
             ),
             id="line-lower-bounds",
         ),
@@ -533,7 +532,7 @@ def test_add_shapes_payload_rejects_out_of_range_values(
                 width=0.01,
                 height=0.01,
                 opacity=1,
-                fill_color_cmyk=(0, 100, 0, 100),
+                fill_color=(0, 100, 0, 100),
             ),
             id="rectangle-upper-bounds",
         ),

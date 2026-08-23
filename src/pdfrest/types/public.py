@@ -34,6 +34,7 @@ __all__ = (
     "PdfAddShapeObject",
     "PdfAddTextObject",
     "PdfCMYKColor",
+    "PdfColor",
     "PdfColorProfile",
     "PdfContentStructureType",
     "PdfConversionCompression",
@@ -139,7 +140,8 @@ class PdfRedactionInstruction(TypedDict):
 
 PdfCMYKColor = tuple[int, int, int, int]
 PdfRGBColor = tuple[int, int, int]
-PdfTextColor = PdfRGBColor | PdfCMYKColor
+PdfColor = PdfRGBColor | PdfCMYKColor
+PdfTextColor = PdfColor
 
 PdfContentStructureType = Literal[
     "P",
@@ -181,8 +183,7 @@ class PdfAddLineObject(TypedDict, total=False):
     y1: Required[float]
     x2: Required[float]
     y2: Required[float]
-    stroke_color_rgb: PdfRGBColor | str
-    stroke_color_cmyk: PdfCMYKColor | str
+    stroke_color: PdfColor
     stroke_width: float
     opacity: float
     tag_actual_text: str
@@ -199,10 +200,8 @@ class PdfAddRectangleObject(TypedDict, total=False):
     y: Required[float]
     width: Required[float]
     height: Required[float]
-    fill_color_rgb: PdfRGBColor | str
-    fill_color_cmyk: PdfCMYKColor | str
-    stroke_color_rgb: PdfRGBColor | str
-    stroke_color_cmyk: PdfCMYKColor | str
+    fill_color: PdfColor
+    stroke_color: PdfColor
     stroke_width: float
     opacity: float
     tag_actual_text: str
