@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, cast, get_args
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, get_args
 
 from typing_extensions import Required, TypedDict
 
@@ -175,7 +175,27 @@ PdfContentStructureType = Literal[
 
 
 class PdfAddLineObject(TypedDict, total=False):
-    """Line shape inserted by [pdfrest.PdfRestClient.add_shapes_to_pdf][]."""
+    """Line shape inserted by [pdfrest.PdfRestClient.add_shapes_to_pdf][].
+
+    Attributes:
+        type: Required discriminator. Must be ``"line"``.
+        page: Required one-based page number or ``"all"``.
+        x1: Required horizontal start coordinate in PDF points. Must be at least 0.
+        y1: Required vertical start coordinate in PDF points. Must be at least 0.
+        x2: Required horizontal end coordinate in PDF points. Must be at least 0.
+        y2: Required vertical end coordinate in PDF points. Must be at least 0.
+        stroke_color: Optional RGB ``(red, green, blue)`` or CMYK
+            ``(cyan, magenta, yellow, black)`` tuple. RGB channels range from 0
+            through 255; CMYK channels range from 0 through 100.
+        stroke_width: Optional line width in PDF points. Must be greater than 0.
+        opacity: Optional opacity from 0 (transparent) through 1 (opaque).
+        tag_actual_text: Optional non-empty accessible text. Requires
+            ``tag_enabled=True`` on the client method.
+        tag_is_artifact: Optional artifact marker. Requires ``tag_enabled=True``
+            on the client method.
+        tag_structure_type: Optional PDF structure type. Requires
+            ``tag_enabled=True`` on the client method.
+    """
 
     type: Required[Literal["line"]]
     page: Required[Literal["all"] | int]
@@ -192,7 +212,32 @@ class PdfAddLineObject(TypedDict, total=False):
 
 
 class PdfAddRectangleObject(TypedDict, total=False):
-    """Rectangle shape inserted by [pdfrest.PdfRestClient.add_shapes_to_pdf][]."""
+    """Rectangle shape inserted by [pdfrest.PdfRestClient.add_shapes_to_pdf][].
+
+    Attributes:
+        type: Required discriminator. Must be ``"rectangle"``.
+        page: Required one-based page number or ``"all"``.
+        x: Required horizontal lower-left coordinate in PDF points. Must be at
+            least 0.
+        y: Required vertical lower-left coordinate in PDF points. Must be at
+            least 0.
+        width: Required width in PDF points. Must be greater than 0.
+        height: Required height in PDF points. Must be greater than 0.
+        fill_color: Optional RGB ``(red, green, blue)`` or CMYK
+            ``(cyan, magenta, yellow, black)`` tuple. RGB channels range from 0
+            through 255; CMYK channels range from 0 through 100.
+        stroke_color: Optional RGB or CMYK tuple with the same channel ranges as
+            ``fill_color``.
+        stroke_width: Optional border width in PDF points. Must be greater than
+            0.
+        opacity: Optional opacity from 0 (transparent) through 1 (opaque).
+        tag_actual_text: Optional non-empty accessible text. Requires
+            ``tag_enabled=True`` on the client method.
+        tag_is_artifact: Optional artifact marker. Requires ``tag_enabled=True``
+            on the client method.
+        tag_structure_type: Optional PDF structure type. Requires
+            ``tag_enabled=True`` on the client method.
+    """
 
     type: Required[Literal["rectangle"]]
     page: Required[Literal["all"] | int]
@@ -209,7 +254,9 @@ class PdfAddRectangleObject(TypedDict, total=False):
     tag_structure_type: PdfContentStructureType
 
 
-PdfAddShapeObject = PdfAddLineObject | PdfAddRectangleObject
+PdfAddShapeObject: TypeAlias = PdfAddLineObject | PdfAddRectangleObject
+"""A line or rectangle object accepted by
+[pdfrest.PdfRestClient.add_shapes_to_pdf][]."""
 
 
 class PdfAddTextObject(TypedDict, total=False):
