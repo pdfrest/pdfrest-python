@@ -181,7 +181,35 @@ Follow `TESTING_GUIDELINES.md` and the live-test requirements in `AGENTS.md`.
 - Update the API guide, public exports, and user-facing examples when the new
   capability or parameter changes discoverability or usage.
 
+### Generated API-reference contracts
+
+The API reference is generated from the public source. Keep request-shape
+documentation with its types; do not hand-copy a shape schema into Markdown.
+
+- For every public `TypedDict` accepted by a client helper, write a Google-style
+  `Attributes:` docstring that explains every field: required versus optional
+  status, accepted values, units or coordinate origin where relevant, declared
+  bounds, and any request-level dependency. Derive those details from the
+  Pydantic payload model and OpenAPI contract; do not guess missing behavior.
+- For a public union alias, declare it as `Name: TypeAlias = ...` and add its
+  PEP 258 attribute docstring immediately after the assignment. The docstring
+  must identify the union members and link to the consuming client helper.
+- Public types are re-exported through `pdfrest.types`. Verify that the rendered
+  reference resolves the re-export to its source union and member types. A
+  self-reference such as `PdfAddShapeObject = PdfAddShapeObject` is a rendering
+  defect, not acceptable documentation.
+- Do not enable broad rendering of undocumented module attributes merely to
+  expose a public alias. That also exposes convenience constants such as
+  `ALL_*`, which are not API-reference contracts. Document the alias at its
+  source instead.
+- Build the docs with `uv run mkdocs build --strict`. For a newly documented
+  union or structured input, inspect the generated API-reference HTML (or make
+  an equivalent focused assertion) to confirm the union members, its docstring,
+  and field-level descriptions render; links from the client method signature
+  must target that entry.
+
 Run targeted unit and live tests first, then the relevant Ruff and type checks.
-Run the full pytest suite and `uvx nox -s tests` when practical. Report the
-OpenAPI operation inspected, files changed, checks run, checks skipped, and any
-live-validation limitation.
+Run the full pytest suite and `uvx nox -s tests` when practical. For API
+reference changes, also run the strict docs build. Report the OpenAPI operation
+inspected, files changed, checks run, checks skipped, and any live-validation
+limitation.
