@@ -24,6 +24,25 @@ an existing helper, such as an added server parameter.
   missing, a required fixture cannot be obtained, or a compatible SDK adaptation
   cannot be made.
 
+## Jira branch setup
+
+When the prompt handed to this skill mentions a Jira work item, create a branch
+before making substantive edits.
+
+- Derive the name as `pdfcloud-<number>-<short-description>`, using the Jira key
+  lowercased and a concise lowercase, hyphen-separated description. For example,
+  `PDFCLOUD-6233 Add PDF outlines` becomes `pdfcloud-6233-add-pdf-outlines`.
+- Use `upstream/main` as the branch's upstream when an `upstream` remote exists.
+  If `origin` is the only remote, use `origin/main` instead. Do not silently
+  select a fork remote when another remote configuration is ambiguous.
+- When HEAD is attached, create the branch from the current commit, then set its
+  upstream explicitly with `git branch --set-upstream-to=<remote>/main`.
+- When HEAD is detached, first fetch the selected remote's `main` branch, then
+  create the branch from `<remote>/main` and set that same ref as its upstream.
+- Do not overwrite an existing branch or discard local changes. Stop and ask the
+  user for direction if the derived name already exists or the remote/main ref
+  cannot be resolved.
+
 ## Public API design
 
 Name a helper for the user outcome, not the path or OpenAPI operation ID.
