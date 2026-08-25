@@ -43,7 +43,13 @@ def pdfrest_api_key() -> str:
 def pdfrest_live_base_url(pdfrest_api_key: str) -> str:
     headers = {"Authorization": f"Bearer {pdfrest_api_key}"}
     timeout = httpx.Timeout(2.0)
-    for base_url in LIVE_BASE_URL_CANDIDATES:
+    configured_base_url = os.getenv("PDFREST_LIVE_BASE_URL")
+    base_url_candidates = (
+        (configured_base_url, *LIVE_BASE_URL_CANDIDATES)
+        if configured_base_url
+        else LIVE_BASE_URL_CANDIDATES
+    )
+    for base_url in base_url_candidates:
         try:
             with httpx.Client(base_url=base_url, timeout=timeout) as client:
                 response = client.get("/up", headers=headers)
