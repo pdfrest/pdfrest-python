@@ -28,18 +28,38 @@ an existing helper, such as an added server parameter.
 
 Name a helper for the user outcome, not the path or OpenAPI operation ID.
 
+## Versioning new APIs
+
+Adding a public API is a feature release and requires a minor-version bump.
+Before editing, compare `pyproject.toml` with the current branch's base and
+commits:
+
+- If this branch has not changed the project version, increment the minor
+  version and reset the patch component to `0` with `uv version --bump minor`.
+
+- If this branch includes only a patch-version change, replace that patch bump
+  with the appropriate next minor version and reset the patch component to `0`
+  with `uv version --bump minor`.
+
+- If the branch already includes the required minor-version bump, retain it. Do
+  not make a major-version change unless the user explicitly requests one.
+
 - Use `snake_case` and lead with a precise action: `convert_`, `add_`,
   `remove_`, `change_`, `flatten_`, `extract_`, `query_`, `preview_`, `apply_`,
   `merge_`, `split_`, `zip_`, or `unzip_`.
+
 - Name the material source/result or effect: `convert_html_to_pdf`,
   `add_text_to_pdf`, and `merge_pdfs`. Include both sides of a conversion.
+
 - Split kitchen-sink routes into distinct helpers when source type, output,
   validation, or user workflow differs. `/pdf` correctly maps to helpers such as
   `convert_office_to_pdf`, `convert_html_to_pdf`, and `convert_url_to_pdf`, not
   one mode-driven endpoint wrapper.
+
 - Use a qualifier only when it changes the contract or workflow, such as
   `preview_redactions` then `apply_redactions`, or text versus image
   watermarking.
+
 - Preserve all existing public method names. Do not rename a method merely to
   fit this standard.
 

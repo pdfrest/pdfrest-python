@@ -20,6 +20,8 @@
   pushing.
 - `uv run pytest` — execute the suite with the active interpreter.
 - `uv build` — produce wheels and sdists identical to the release workflow.
+- `uv version --bump <major|minor|patch>` — update the project version; use this
+  command instead of editing the version manually in `pyproject.toml`.
 - `uvx nox -s tests` — create matrix virtualenvs via nox and execute the pytest
   session.
 - `nox` executes pytest sessions with built-in parallelism; when invoking pytest
