@@ -78,6 +78,22 @@ To reuse existing coverage JSON without rerunning tests:
 uvx nox -s class-coverage -- --no-tests
 ```
 
+### Live tests
+
+Live tests require `PDFREST_API_KEY`. By default, the test fixture tries the
+local service, the development service, and then the production service. To run
+against a specific reachable pdfRest deployment first, set
+`PDFREST_LIVE_BASE_URL` to its base URL:
+
+```bash
+export PDFREST_API_KEY="..."
+export PDFREST_LIVE_BASE_URL="https://pdfrest.example.com"
+uvx nox -s tests-3.11 -- tests/live
+```
+
+If that URL is unavailable, the fixture continues with its normal fallback URLs
+and fails only when none are reachable.
+
 ## Examples
 
 Run all examples:
