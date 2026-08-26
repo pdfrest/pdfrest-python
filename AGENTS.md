@@ -371,6 +371,14 @@
   flow short and instructional while printing enough typed response data for a
   user and CI to confirm success.
 
+- When a public `TypedDict` represents a structured API input, construct it in
+  examples with its keyword constructor, such as `PdfAddLineObject(...)`,
+  instead of an anonymous dictionary literal. Annotate heterogeneous collections
+  with the public union alias, such as `list[PdfAddShapeObject]`, so readers and
+  type checkers can see the supported contract. Use dictionary literals when
+  demonstrating dynamic data, intentionally invalid input, or raw wire-format
+  overrides.
+
 - Put interpreter-specific alternatives beside the base script as
   `python-X.Y/<same_name>.py`, with a local `ruff.toml` extending the parent
   configuration, only when syntax or compatibility requires a distinct script.

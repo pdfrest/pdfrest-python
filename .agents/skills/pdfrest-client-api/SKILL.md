@@ -226,6 +226,13 @@ user workflow or demonstrates behavior that is not otherwise discoverable.
   endpoint-relevant response details. Keep it deterministic, repeatable, and
   independent of third-party URLs.
 
+- When a public `TypedDict` represents a structured API input, construct it in
+  examples with its keyword constructor, such as `PdfAddLineObject(...)`,
+  instead of an anonymous dictionary literal. Annotate heterogeneous collections
+  with the public union alias, such as `list[PdfAddShapeObject]`. Reserve
+  dictionary literals for dynamic data, intentionally invalid input, and raw
+  wire-format overrides.
+
 - Use `python-X.Y/<same_name>.py` plus an extending `ruff.toml` only when an
   older interpreter needs a distinct implementation. Otherwise keep one script
   compatible across the supported range.
