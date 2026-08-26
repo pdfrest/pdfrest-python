@@ -326,6 +326,65 @@
   to `.env`) in temporary scripts to drive the in-flight client against live
   endpoints and capture responses for test data and assertions.
 
+## Example Guidelines
+
+- Every new public endpoint/helper must include a runnable example under
+  `examples/`. Group examples by capability in an endpoint-oriented directory
+  such as `examples/extract_text/`, and use a descriptive `*_example.py`
+  filename. Add the script to the inventory in `examples/README.md` and update
+  relevant docs links or usage guidance when the new capability changes
+  discoverability.
+
+- Make each example a standalone uv script. Its first lines must be a PEP 723
+  metadata block in the single-line form understood by the Nox example discovery
+  code:
+
+  ```python
+  # /// script
+  # requires-python = ">=3.10"
+  # dependencies = ["pdfrest", "python-dotenv"]
+  # ///
+  ```
+
+  Set `requires-python` to the widest supported range the example actually
+  supports and list every third-party import in `dependencies`. Keep the block
+  first (do not put a shebang above it), because `noxfile.py` reads metadata
+  starting at line one. PEP 723 metadata gives `uv run` an isolated environment;
+  do not rely on undeclared project or development dependencies.
+
+- Follow the metadata with a module docstring that states the user outcome,
+  lists the important upload/API/output steps, and gives the exact command to
+  run from the repository root, for example
+  `uv run examples/extract_text/extract_pdf_text_example.py`. Name required
+  environment variables, input files, and any expected setup in that docstring.
+
+- Prefer deterministic, redistributable inputs under `examples/resources/` and
+  resolve them relative to `Path(__file__)`, never the caller's working
+  directory. Reuse a suitable checked-in resource when possible. Before adding a
+  new binary or specialized input, confirm its provenance, redistribution
+  suitability, and expected API behavior; ask the contributor for the required
+  asset when those cannot be established.
+
+- Examples exercise the real service, load `PDFREST_API_KEY` from the
+  environment (optionally through `python-dotenv`), upload local inputs through
+  `client.files.create_from_paths`, and use client context managers. Keep the
+  flow short and instructional while printing enough typed response data for a
+  user and CI to confirm success.
+
+- Put interpreter-specific alternatives beside the base script as
+  `python-X.Y/<same_name>.py`, with a local `ruff.toml` extending the parent
+  configuration, only when syntax or compatibility requires a distinct script.
+  The base script remains the default for newer supported interpreters.
+
+- Validate a new or changed example directly with `uv run <script>` when the
+  published SDK contains the demonstrated API. During development, validate
+  against the local checkout with
+  `uvx nox -s run-example -- examples/<capability>/<script>.py`; run
+  `uvx nox -s examples` for the Python 3.10-3.14 matrix when practical. The CI
+  `examples` job runs every discovered script against the live service on each
+  supported interpreter and gates publishing, so examples must be safe to run
+  repeatedly and must not depend on third-party network resources.
+
 ## Commit & Pull Request Guidelines
 
 - Follow the `area: summary` convention seen in `pdfassistant-chatbot` (e.g.,
