@@ -181,6 +181,61 @@ Follow `TESTING_GUIDELINES.md` and the live-test requirements in `AGENTS.md`.
 - Update the API guide, public exports, and user-facing examples when the new
   capability or parameter changes discoverability or usage.
 
+### Runnable example requirement
+
+Every new public endpoint/helper requires a runnable example; it is part of the
+API deliverable, not optional follow-up documentation. For a compatible change
+to an existing helper, extend or add an example when the new parameter changes a
+user workflow or demonstrates behavior that is not otherwise discoverable.
+
+- Before creating the example, identify every input asset it needs and inspect
+  `examples/resources/` for a suitable deterministic, redistributable fixture.
+  If any required file is absent, ask the user to provide it, naming the needed
+  file type and relevant characteristics (for example, a signed PDF, a
+  multi-page TIFF, a font, or a profile JSON). Do not fabricate, download, or
+  substitute a semantically unsuitable input. Stop if a required fixture cannot
+  be obtained.
+
+- Add one endpoint-oriented script at
+  `examples/<capability>/<descriptive_name>_example.py` and list it in
+  `examples/README.md`. Reuse checked-in assets via a path derived from
+  `Path(__file__)`; place an approved new shared asset under
+  `examples/resources/`.
+
+- Start the script at line one with the repository's single-line PEP 723 header:
+
+  ```python
+  # /// script
+  # requires-python = ">=3.10"
+  # dependencies = ["pdfrest", "python-dotenv"]
+  # ///
+  ```
+
+  Adjust the Python constraint and declare every third-party import. Do not add
+  a shebang before the metadata. Inline metadata isolates `uv run` from the
+  project environment, and `noxfile.py` parses this exact line-one structure.
+
+- Immediately follow the header with a module docstring that explains the user
+  outcome, enumerates the upload/API/result steps, names `PDFREST_API_KEY` and
+  all input prerequisites, and provides the repository-root command
+  `uv run examples/<capability>/<descriptive_name>_example.py`.
+
+- Use the public SDK exactly as a customer would: load the API key environment,
+  enter the sync or async client context manager, upload local assets first,
+  call the new helper with `PdfRestFile` values, and print concise,
+  endpoint-relevant response details. Keep it deterministic, repeatable, and
+  independent of third-party URLs.
+
+- Use `python-X.Y/<same_name>.py` plus an extending `ruff.toml` only when an
+  older interpreter needs a distinct implementation. Otherwise keep one script
+  compatible across the supported range.
+
+- Validate the example against the local checkout with
+  `uvx nox -s run-example -- examples/<capability>/<script>.py`. When practical,
+  run `uvx nox -s examples` to cover Python 3.10-3.14; direct
+  `uv run examples/<capability>/<script>.py` is also required once the published
+  `pdfrest` release contains the new API.
+
 ### Generated API-reference contracts
 
 The API reference is generated from the public source. Keep request-shape
@@ -210,6 +265,6 @@ documentation with its types; do not hand-copy a shape schema into Markdown.
 
 Run targeted unit and live tests first, then the relevant Ruff and type checks.
 Run the full pytest suite and `uvx nox -s tests` when practical. For API
-reference changes, also run the strict docs build. Report the OpenAPI operation
-inspected, files changed, checks run, checks skipped, and any live-validation
-limitation.
+reference changes, also run the strict docs build. Run the focused example and
+the example matrix as described above. Report the OpenAPI operation inspected,
+files changed, checks run, checks skipped, and any live-validation limitation.
