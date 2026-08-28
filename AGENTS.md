@@ -81,6 +81,23 @@
   payload models (`model_validate`). Avoid duplicating payload validation in
   client methods or raising configuration errors for payload-shape issues that
   Pydantic validators can enforce.
+- Decide public helper granularity from an applicability matrix, not from the
+  number of HTTP routes. List each user-recognizable source/workflow variant
+  against its accepted MIME types/extensions, required inputs, optional fields,
+  output shape, and validation rules; classify every option as universal,
+  subset-only, or variant-exclusive.
+- Split one server operation into focused helpers when the source/workflow is
+  known before the call and a combined signature would expose options that are
+  invalid for some variants, require mode-dependent runtime checks, or weaken
+  editor/type-checker guidance. Distinct file-family validation or a meaningful
+  cluster of variant-only options is strong evidence for a split; a shared path
+  or wire object is not evidence for one public helper.
+- Keep one helper when the variants share one coherent input contract and
+  outcome, or when a natural discriminated public input can make every valid
+  combination statically explicit without a kitchen-sink keyword signature. When
+  helpers are split, keep universal keywords consistent, share internal
+  base/nested payload models, and give each helper its own narrow payload model
+  that rejects other variants before transport execution.
 - Prefer Pydantic-backed JSON serialization for performance: use
   `model_dump_json()` for Pydantic models, and use `pydantic_core.to_json()` for
   non-model payloads instead of `json.dumps()` where practical.
@@ -397,6 +414,11 @@
 
 - Follow the `area: summary` convention seen in `pdfassistant-chatbot` (e.g.,
   `client: Add document merge service`).
+- Name the commit scope after the primary file, directory, or domain object
+  affected by the change, such as `AGENTS`, `pdfrest-client-api`, `client`,
+  `models`, `tests`, `examples`, `docs`, or `pyproject`. Do not use generic
+  category or intent labels such as `guidance`, `changes`, `maintenance`, or
+  `misc`.
 - Keep commit messages imperative and focused; squash fixups before opening a
   PR.
 - Reference related issues or tickets in the PR description, and highlight

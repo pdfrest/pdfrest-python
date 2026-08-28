@@ -47,6 +47,39 @@ before making substantive edits.
 
 Name a helper for the user outcome, not the path or OpenAPI operation ID.
 
+### Decide helper granularity with an applicability matrix
+
+Before choosing one helper or several, derive a matrix from the OpenAPI
+contract. Use one row per user-recognizable source type or workflow and record:
+
+- accepted MIME types and filename extensions;
+- required inputs and resource cardinality;
+- optional fields, classified as universal, subset-only, or variant-exclusive;
+- output/response shape and any materially different validation or lifecycle.
+
+Prefer focused helpers when the caller knows the source/workflow before the call
+and a combined signature would expose keywords that are invalid for some rows,
+depend on a mode or file type for their meaning, require extensive cross-field
+runtime rejection, or prevent the type checker/editor from showing the valid
+option set. Distinct file-family validation or a meaningful cluster of
+row-specific options is strong evidence for a split. The fact that variants
+share an HTTP path, OpenAPI operation, or nested wire object is not evidence
+that they should share a public helper.
+
+Keep one helper when the rows share one coherent input contract and outcome and
+nearly all options apply uniformly. A single helper can also be appropriate when
+a natural discriminated `TypedDict`/model union expresses each variant without a
+kitchen-sink keyword signature and static typing rejects invalid combinations.
+Do not add a synthetic mode discriminator merely to avoid naming clear user
+workflows.
+
+When splitting, keep universal keywords and request-customization arguments
+consistent across helpers, reuse internal base/nested models for common wire
+fields, and give each helper a narrow payload model for its applicable options
+and file-family validation. Add tests proving every helper rejects the other
+families before transport and never serializes an option that is inapplicable to
+its row.
+
 ## Versioning new APIs
 
 Adding a public API is a feature release and requires a minor-version bump.
@@ -70,10 +103,10 @@ commits:
 - Name the material source/result or effect: `convert_html_to_pdf`,
   `add_text_to_pdf`, and `merge_pdfs`. Include both sides of a conversion.
 
-- Split kitchen-sink routes into distinct helpers when source type, output,
-  validation, or user workflow differs. `/pdf` correctly maps to helpers such as
-  `convert_office_to_pdf`, `convert_html_to_pdf`, and `convert_url_to_pdf`, not
-  one mode-driven endpoint wrapper.
+- Split kitchen-sink routes according to the applicability-matrix decision
+  above. `/pdf` correctly maps to helpers such as `convert_office_to_pdf`,
+  `convert_html_to_pdf`, and `convert_url_to_pdf`, not one mode-driven endpoint
+  wrapper.
 
 - Use a qualifier only when it changes the contract or workflow, such as
   `preview_redactions` then `apply_redactions`, or text versus image
