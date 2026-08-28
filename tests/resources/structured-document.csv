@@ -1,0 +1,3 @@
+service,availability_percent,status
+Document API,99.98,healthy
+Conversion API,99.97,healthy

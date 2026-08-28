@@ -1,0 +1,3 @@
+Quarterly service summary
+
+Availability improved during the quarter while response times remained stable.
