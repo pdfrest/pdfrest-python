@@ -135,7 +135,12 @@ formats.
   [convert_email_to_pdf][pdfrest.PdfRestClient.convert_email_to_pdf],
   [convert_image_to_pdf][pdfrest.PdfRestClient.convert_image_to_pdf],
   [convert_html_to_pdf][pdfrest.PdfRestClient.convert_html_to_pdf],
-  [convert_url_to_pdf][pdfrest.PdfRestClient.convert_url_to_pdf]
+  [convert_url_to_pdf][pdfrest.PdfRestClient.convert_url_to_pdf],
+  [convert_markdown_to_pdf][pdfrest.PdfRestClient.convert_markdown_to_pdf],
+  [convert_plain_text_to_pdf][pdfrest.PdfRestClient.convert_plain_text_to_pdf],
+  [convert_json_to_pdf][pdfrest.PdfRestClient.convert_json_to_pdf],
+  [convert_xml_to_pdf][pdfrest.PdfRestClient.convert_xml_to_pdf],
+  [convert_csv_to_pdf][pdfrest.PdfRestClient.convert_csv_to_pdf]
 - Out of PDF:
   [convert_to_word][pdfrest.PdfRestClient.convert_to_word],
   [convert_to_excel][pdfrest.PdfRestClient.convert_to_excel],
