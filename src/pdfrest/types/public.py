@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, get_args
 
 from typing_extensions import Required, TypedDict
@@ -58,6 +58,18 @@ __all__ = (
     "PdfSignatureDisplay",
     "PdfSignatureLocation",
     "PdfSignaturePoint",
+    "PdfStructuredTextCellPadding",
+    "PdfStructuredTextCsvColumn",
+    "PdfStructuredTextDataPresentation",
+    "PdfStructuredTextImageSources",
+    "PdfStructuredTextLineHandling",
+    "PdfStructuredTextMargin",
+    "PdfStructuredTextMissingImageAltText",
+    "PdfStructuredTextPageOrientation",
+    "PdfStructuredTextPageSetup",
+    "PdfStructuredTextStyle",
+    "PdfStructuredTextTableStyle",
+    "PdfStructuredTextTextAlignment",
     "PdfTextColor",
     "PdfXType",
     "PngColorModel",
@@ -142,6 +154,153 @@ PdfCMYKColor = tuple[int, int, int, int]
 PdfRGBColor = tuple[int, int, int]
 PdfColor = PdfRGBColor | PdfCMYKColor
 PdfTextColor = PdfColor
+
+PdfStructuredTextDataPresentation: TypeAlias = Literal["source", "hierarchy"]
+"""JSON/XML presentation accepted by structured document conversion helpers."""
+
+PdfStructuredTextPageOrientation: TypeAlias = Literal["auto", "portrait", "landscape"]
+"""Page orientation accepted by structured document conversion helpers."""
+
+PdfStructuredTextMissingImageAltText: TypeAlias = Literal["warn", "fail", "artifact"]
+"""Policy for Markdown images that do not have alternate text."""
+
+PdfStructuredTextLineHandling: TypeAlias = Literal["reflow", "preserve"]
+"""Line-break handling accepted by ``convert_plain_text_to_pdf``."""
+
+PdfStructuredTextTextAlignment: TypeAlias = Literal["left", "center", "right"]
+"""CSV column text alignment accepted by ``convert_csv_to_pdf``."""
+
+
+class PdfStructuredTextMargin(TypedDict, total=False):
+    """Per-side page margins for structured document conversion.
+
+    Attributes:
+        top: Optional top margin in PDF points. Must be at least 0.
+        right: Optional right margin in PDF points. Must be at least 0.
+        bottom: Optional bottom margin in PDF points. Must be at least 0.
+        left: Optional left margin in PDF points. Must be at least 0.
+    """
+
+    top: float
+    right: float
+    bottom: float
+    left: float
+
+
+class PdfStructuredTextPageSetup(TypedDict, total=False):
+    """Page geometry for structured document conversion.
+
+    Attributes:
+        size: Optional non-empty page-size name understood by pdfRest, such as
+            ``Letter`` or ``A4``.
+        width: Optional custom page width in PDF points. Must be greater than 0
+            and supplied together with ``height``.
+        height: Optional custom page height in PDF points. Must be greater than
+            0 and supplied together with ``width``.
+        orientation: Optional ``auto``, ``portrait``, or ``landscape`` page
+            orientation.
+        margin: Optional per-side margins in PDF points.
+    """
+
+    size: str
+    width: float
+    height: float
+    orientation: PdfStructuredTextPageOrientation
+    margin: PdfStructuredTextMargin
+
+
+class PdfStructuredTextCellPadding(TypedDict, total=False):
+    """Per-side table-cell padding for Markdown and CSV conversion.
+
+    Attributes:
+        top: Optional top padding in PDF points, from 0 through 72.
+        right: Optional right padding in PDF points, from 0 through 72.
+        bottom: Optional bottom padding in PDF points, from 0 through 72.
+        left: Optional left padding in PDF points, from 0 through 72.
+    """
+
+    top: float
+    right: float
+    bottom: float
+    left: float
+
+
+class PdfStructuredTextTableStyle(TypedDict, total=False):
+    """Table presentation for Markdown and CSV conversion.
+
+    Attributes:
+        column_width_weights: Optional non-empty relative column-width weights;
+            every value must be greater than 0.
+        keep_header_with_first_row: Optional flag to keep the table header with
+            its first data row during pagination.
+        repeat_headers_on_overflow: Optional flag to repeat headers on
+            continuation pages.
+        show_borders: Optional flag to draw table-cell borders.
+        border_width: Optional border width in PDF points, from 0 through 12.
+        border_color_rgb: Optional RGB border color with channels from 0 through
+            255.
+        header_fill_color_rgb: Optional RGB header background color.
+        header_text_color_rgb: Optional RGB header text color.
+        row_fill_color_rgb: Optional RGB data-row background color.
+        alternate_row_fill_color_rgb: Optional RGB alternating-row background
+            color.
+        cell_padding: Optional per-side cell padding in PDF points.
+    """
+
+    column_width_weights: Sequence[float]
+    keep_header_with_first_row: bool
+    repeat_headers_on_overflow: bool
+    show_borders: bool
+    border_width: float
+    border_color_rgb: PdfRGBColor
+    header_fill_color_rgb: PdfRGBColor
+    header_text_color_rgb: PdfRGBColor
+    row_fill_color_rgb: PdfRGBColor
+    alternate_row_fill_color_rgb: PdfRGBColor
+    cell_padding: PdfStructuredTextCellPadding
+
+
+class PdfStructuredTextStyle(TypedDict, total=False):
+    """Typography shared by all structured document conversion helpers.
+
+    Attributes:
+        font: Optional non-empty body-text font family.
+        heading_font: Optional non-empty heading font family.
+        code_font: Optional non-empty code/preformatted-text font family.
+        cjk_font: Optional non-empty Chinese, Japanese, and Korean font family.
+        fallback_fonts: Optional non-empty ordered fallback-font family list.
+        text_size: Optional body-text size in PDF points, from 6 through 72.
+        text_color_rgb: Optional RGB body-text color with channels from 0
+            through 255.
+        heading_scale: Optional heading scale greater than 0 and at most 4.
+    """
+
+    font: str
+    heading_font: str
+    code_font: str
+    cjk_font: str
+    fallback_fonts: Sequence[str]
+    text_size: float
+    text_color_rgb: PdfRGBColor
+    heading_scale: float
+
+
+class PdfStructuredTextCsvColumn(TypedDict, total=False):
+    """One CSV column presentation override.
+
+    Attributes:
+        index: Required zero-based CSV column index.
+        text_align: Optional ``left``, ``center``, or ``right`` alignment.
+        width_weight: Optional relative width weight greater than 0.
+    """
+
+    index: Required[int]
+    text_align: PdfStructuredTextTextAlignment
+    width_weight: float
+
+
+PdfStructuredTextImageSources: TypeAlias = Mapping[str, PdfRestFile]
+"""Markdown image-target mapping consumed by ``convert_markdown_to_pdf``."""
 
 PdfContentStructureType = Literal[
     "P",
