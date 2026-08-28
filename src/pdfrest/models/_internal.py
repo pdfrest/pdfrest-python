@@ -18,7 +18,7 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
-from pydantic_core import to_json
+from pydantic_core import PydanticCustomError, to_json
 
 from pdfrest.types.public import PdfRedactionPreset
 
@@ -38,6 +38,11 @@ from ..types import (
     PdfPageSize,
     PdfPresetColorProfile,
     PdfRestriction,
+    PdfStructuredTextDataPresentation,
+    PdfStructuredTextLineHandling,
+    PdfStructuredTextMissingImageAltText,
+    PdfStructuredTextPageOrientation,
+    PdfStructuredTextTextAlignment,
     PdfXType,
     SummaryFormat,
     SummaryOutputFormat,
@@ -273,6 +278,20 @@ def _allowed_mime_types(
         return value
 
     return allowed_mime_types_validator
+
+
+def _allowed_file_extensions(
+    *allowed_extensions: str, error_msg: str
+) -> Callable[[list[PdfRestFile]], list[PdfRestFile]]:
+    normalized_extensions = {extension.casefold() for extension in allowed_extensions}
+
+    def validate_file_extensions(value: list[PdfRestFile]) -> list[PdfRestFile]:
+        for file in value:
+            if PurePath(file.name).suffix.casefold() not in normalized_extensions:
+                raise ValueError(error_msg)
+        return value
+
+    return validate_file_extensions
 
 
 def _int_to_string(value: Any) -> Any:
@@ -901,6 +920,427 @@ class ConvertUrlToPdfPayload(BaseModel):
         HtmlWebLayout | None,
         Field(serialization_alias="web_layout", default=None),
     ] = None
+
+
+_STRUCTURED_MARKDOWN_MIME_TYPES = {"text/markdown", "text/x-markdown"}
+_STRUCTURED_PLAIN_TEXT_MIME_TYPES = {"text/plain"}
+_STRUCTURED_JSON_MIME_TYPES = {"application/json", "text/json"}
+_STRUCTURED_XML_MIME_TYPES = {"application/xml", "text/xml"}
+_STRUCTURED_CSV_MIME_TYPES = {"text/csv", "application/csv"}
+_STRUCTURED_IMAGE_MIME_TYPES = {
+    "image/gif",
+    "image/jpeg",
+    "image/png",
+    "image/tiff",
+}
+
+_StructuredRgbChannel = Annotated[int, Field(ge=0, le=255)]
+_StructuredRgbColor = tuple[
+    _StructuredRgbChannel,
+    _StructuredRgbChannel,
+    _StructuredRgbChannel,
+]
+_PositiveStructuredNumber = Annotated[float, Field(gt=0)]
+_NonEmptyStructuredString = Annotated[str, Field(min_length=1)]
+
+
+class _StrictStructuredTextModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class _StructuredTextMargin(_StrictStructuredTextModel):
+    top: Annotated[float | None, Field(ge=0)] = None
+    right: Annotated[float | None, Field(ge=0)] = None
+    bottom: Annotated[float | None, Field(ge=0)] = None
+    left: Annotated[float | None, Field(ge=0)] = None
+
+
+class _StructuredTextPageSetup(_StrictStructuredTextModel):
+    size: _NonEmptyStructuredString | None = None
+    width: Annotated[float | None, Field(gt=0)] = None
+    height: Annotated[float | None, Field(gt=0)] = None
+    orientation: PdfStructuredTextPageOrientation | None = None
+    margin: _StructuredTextMargin | None = None
+
+    @model_validator(mode="after")
+    def _validate_custom_dimensions(self) -> _StructuredTextPageSetup:
+        if (self.width is None) != (self.height is None):
+            msg = "page_setup.width and page_setup.height must be provided together."
+            raise ValueError(msg)
+        return self
+
+
+class _StructuredTextCellPadding(_StrictStructuredTextModel):
+    top: Annotated[float | None, Field(ge=0, le=72)] = None
+    right: Annotated[float | None, Field(ge=0, le=72)] = None
+    bottom: Annotated[float | None, Field(ge=0, le=72)] = None
+    left: Annotated[float | None, Field(ge=0, le=72)] = None
+
+
+class _StructuredTextTableStyle(_StrictStructuredTextModel):
+    column_width_weights: Annotated[
+        list[_PositiveStructuredNumber] | None, Field(min_length=1)
+    ] = None
+    keep_header_with_first_row: bool | None = None
+    repeat_headers_on_overflow: bool | None = None
+    show_borders: bool | None = None
+    border_width: Annotated[float | None, Field(ge=0, le=12)] = None
+    border_color_rgb: _StructuredRgbColor | None = None
+    header_fill_color_rgb: _StructuredRgbColor | None = None
+    header_text_color_rgb: _StructuredRgbColor | None = None
+    row_fill_color_rgb: _StructuredRgbColor | None = None
+    alternate_row_fill_color_rgb: _StructuredRgbColor | None = None
+    cell_padding: _StructuredTextCellPadding | None = None
+
+
+class _StructuredTextStyle(_StrictStructuredTextModel):
+    font: _NonEmptyStructuredString | None = None
+    heading_font: _NonEmptyStructuredString | None = None
+    code_font: _NonEmptyStructuredString | None = None
+    cjk_font: _NonEmptyStructuredString | None = None
+    fallback_fonts: Annotated[
+        list[_NonEmptyStructuredString] | None, Field(min_length=1)
+    ] = None
+    text_size: Annotated[float | None, Field(ge=6, le=72)] = None
+    text_color_rgb: _StructuredRgbColor | None = None
+    heading_scale: Annotated[float | None, Field(gt=0, le=4)] = None
+
+
+class _StructuredTextTableEnabledStyle(_StructuredTextStyle):
+    table: _StructuredTextTableStyle | None = None
+
+
+class _StructuredTextImageSource(_StrictStructuredTextModel):
+    image_id_index: Annotated[int, Field(ge=0)]
+
+
+class _StructuredTextMarkdownOptions(_StrictStructuredTextModel):
+    image_alt_text: dict[str, _NonEmptyStructuredString] | None = None
+    missing_image_alt_text: PdfStructuredTextMissingImageAltText | None = None
+    image_sources: dict[str, _StructuredTextImageSource] | None = None
+
+
+class _StructuredTextPlainTextOptions(_StrictStructuredTextModel):
+    line_handling: PdfStructuredTextLineHandling | None = None
+
+
+class _StructuredTextCsvColumn(_StrictStructuredTextModel):
+    index: Annotated[int, Field(ge=0)]
+    text_align: PdfStructuredTextTextAlignment | None = None
+    width_weight: Annotated[float | None, Field(gt=0)] = None
+
+
+class _StructuredTextCsvOptions(_StrictStructuredTextModel):
+    first_row_is_header: bool | None = None
+    delimiter: Annotated[str | None, Field(min_length=1, max_length=1)] = None
+    columns: Annotated[list[_StructuredTextCsvColumn] | None, Field(min_length=1)] = (
+        None
+    )
+
+
+class _StructuredTextOptionsBase(_StrictStructuredTextModel):
+    title: _NonEmptyStructuredString | None = None
+    language: _NonEmptyStructuredString | None = None
+    enable_tagging: bool | None = None
+    page_setup: _StructuredTextPageSetup | None = None
+
+
+class _StructuredTextOptions(_StructuredTextOptionsBase):
+    style: _StructuredTextStyle | None = None
+
+
+class _StructuredTextMarkdownConversionOptions(_StructuredTextOptionsBase):
+    include_unrendered_html: bool | None = None
+    markdown: _StructuredTextMarkdownOptions | None = None
+    style: _StructuredTextTableEnabledStyle | None = None
+
+
+class _StructuredTextPlainTextConversionOptions(_StructuredTextOptions):
+    plain_text: _StructuredTextPlainTextOptions | None = None
+
+
+class _StructuredTextDataConversionOptions(_StructuredTextOptions):
+    data_presentation: PdfStructuredTextDataPresentation | None = None
+
+
+class _StructuredTextCsvConversionOptions(_StructuredTextOptionsBase):
+    csv: _StructuredTextCsvOptions | None = None
+    style: _StructuredTextTableEnabledStyle | None = None
+
+
+def _pop_present_options(
+    normalized: dict[str, Any], keys: Sequence[str]
+) -> dict[str, Any]:
+    return {key: normalized.pop(key) for key in keys if key in normalized}
+
+
+def _merge_structured_text_table_style(
+    normalized: dict[str, Any], options: dict[str, Any]
+) -> None:
+    table_style = normalized.pop("table_style", None)
+    if table_style is None:
+        return
+    style_value: object = options.get("style") or {}
+    if not isinstance(style_value, Mapping):
+        msg = "style must be a mapping when table_style is provided."
+        error_type = "structured_text_style_type"
+        raise PydanticCustomError(error_type, msg)
+    style = cast(Mapping[str, Any], style_value)
+    options["style"] = {**style, "table": table_style}
+
+
+def _serialize_markdown_image_sources(
+    image_sources: Mapping[str, Any], normalized: dict[str, Any]
+) -> dict[str, dict[str, int]]:
+    image_ids: list[PdfRestFile] = []
+    image_indexes: dict[str, int] = {}
+    wire_sources: dict[str, dict[str, int]] = {}
+    for target, image in image_sources.items():
+        if not isinstance(image, PdfRestFile):
+            msg = "image_sources must map Markdown targets to PdfRestFile objects."
+            error_type = "structured_text_image_source_type"
+            raise PydanticCustomError(error_type, msg)
+        image_id = str(image.id)
+        if image_id not in image_indexes:
+            image_indexes[image_id] = len(image_ids)
+            image_ids.append(image)
+        wire_sources[str(target)] = {"image_id_index": image_indexes[image_id]}
+    if image_ids:
+        normalized["image_ids"] = image_ids
+    return wire_sources
+
+
+def _nest_markdown_options(normalized: dict[str, Any], options: dict[str, Any]) -> None:
+    options.update(_pop_present_options(normalized, ("include_unrendered_html",)))
+    markdown_options = _pop_present_options(
+        normalized, ("image_alt_text", "missing_image_alt_text")
+    )
+    image_sources = normalized.pop("image_sources", None)
+    if image_sources is not None:
+        if not isinstance(image_sources, Mapping):
+            msg = "image_sources must map Markdown targets to PdfRestFile objects."
+            raise ValueError(msg)
+        markdown_options["image_sources"] = _serialize_markdown_image_sources(
+            cast(Mapping[str, Any], image_sources), normalized
+        )
+    if markdown_options:
+        options["markdown"] = markdown_options
+
+
+def _nest_plain_text_options(
+    normalized: dict[str, Any], options: dict[str, Any]
+) -> None:
+    plain_text_options = _pop_present_options(normalized, ("line_handling",))
+    if plain_text_options:
+        options["plain_text"] = plain_text_options
+
+
+def _nest_data_options(normalized: dict[str, Any], options: dict[str, Any]) -> None:
+    options.update(_pop_present_options(normalized, ("data_presentation",)))
+
+
+def _nest_csv_options(normalized: dict[str, Any], options: dict[str, Any]) -> None:
+    csv_options = _pop_present_options(
+        normalized, ("first_row_is_header", "delimiter", "columns")
+    )
+    if csv_options:
+        options["csv"] = csv_options
+
+
+def _nest_structured_text_payload(value: Any, input_format: str) -> Any:
+    if not isinstance(value, Mapping):
+        return value
+
+    normalized = dict(cast(Mapping[str, Any], value))
+    if "structured_text_options" in normalized:
+        return normalized
+
+    options = _pop_present_options(
+        normalized, ("title", "language", "enable_tagging", "page_setup", "style")
+    )
+    _merge_structured_text_table_style(normalized, options)
+
+    option_nesters = {
+        "markdown": _nest_markdown_options,
+        "plain_text": _nest_plain_text_options,
+        "json": _nest_data_options,
+        "xml": _nest_data_options,
+        "csv": _nest_csv_options,
+    }
+    option_nesters[input_format](normalized, options)
+
+    if options:
+        normalized["structured_text_options"] = options
+    return normalized
+
+
+_StructuredMarkdownFiles = Annotated[
+    list[PdfRestFile],
+    Field(
+        min_length=1,
+        max_length=1,
+        validation_alias=AliasChoices("file", "files"),
+        serialization_alias="id",
+    ),
+    BeforeValidator(_ensure_list),
+    AfterValidator(
+        _allowed_mime_types(
+            *_STRUCTURED_MARKDOWN_MIME_TYPES,
+            error_msg="Must be a Markdown file.",
+        )
+    ),
+    AfterValidator(
+        _allowed_file_extensions(
+            ".md", ".markdown", error_msg="Must be a .md or .markdown file."
+        )
+    ),
+    PlainSerializer(_serialize_as_first_file_id),
+]
+_StructuredPlainTextFiles = Annotated[
+    list[PdfRestFile],
+    Field(
+        min_length=1,
+        max_length=1,
+        validation_alias=AliasChoices("file", "files"),
+        serialization_alias="id",
+    ),
+    BeforeValidator(_ensure_list),
+    AfterValidator(
+        _allowed_mime_types(
+            *_STRUCTURED_PLAIN_TEXT_MIME_TYPES,
+            error_msg="Must be a plain text file.",
+        )
+    ),
+    AfterValidator(_allowed_file_extensions(".txt", error_msg="Must be a .txt file.")),
+    PlainSerializer(_serialize_as_first_file_id),
+]
+_StructuredJsonFiles = Annotated[
+    list[PdfRestFile],
+    Field(
+        min_length=1,
+        max_length=1,
+        validation_alias=AliasChoices("file", "files"),
+        serialization_alias="id",
+    ),
+    BeforeValidator(_ensure_list),
+    AfterValidator(
+        _allowed_mime_types(
+            *_STRUCTURED_JSON_MIME_TYPES,
+            error_msg="Must be a JSON file.",
+        )
+    ),
+    AfterValidator(
+        _allowed_file_extensions(".json", error_msg="Must be a .json file.")
+    ),
+    PlainSerializer(_serialize_as_first_file_id),
+]
+_StructuredXmlFiles = Annotated[
+    list[PdfRestFile],
+    Field(
+        min_length=1,
+        max_length=1,
+        validation_alias=AliasChoices("file", "files"),
+        serialization_alias="id",
+    ),
+    BeforeValidator(_ensure_list),
+    AfterValidator(
+        _allowed_mime_types(
+            *_STRUCTURED_XML_MIME_TYPES,
+            error_msg="Must be an XML file.",
+        )
+    ),
+    AfterValidator(_allowed_file_extensions(".xml", error_msg="Must be an .xml file.")),
+    PlainSerializer(_serialize_as_first_file_id),
+]
+_StructuredCsvFiles = Annotated[
+    list[PdfRestFile],
+    Field(
+        min_length=1,
+        max_length=1,
+        validation_alias=AliasChoices("file", "files"),
+        serialization_alias="id",
+    ),
+    BeforeValidator(_ensure_list),
+    AfterValidator(
+        _allowed_mime_types(
+            *_STRUCTURED_CSV_MIME_TYPES,
+            error_msg="Must be a CSV file.",
+        )
+    ),
+    AfterValidator(_allowed_file_extensions(".csv", error_msg="Must be a .csv file.")),
+    PlainSerializer(_serialize_as_first_file_id),
+]
+
+
+class _BaseStructuredTextToPdfPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    output: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+
+class ConvertMarkdownToPdfPayload(_BaseStructuredTextToPdfPayload):
+    files: _StructuredMarkdownFiles
+    structured_text_options: _StructuredTextMarkdownConversionOptions | None = None
+    image_ids: Annotated[
+        list[PdfRestFile] | None,
+        Field(min_length=1, serialization_alias="image_ids", default=None),
+        AfterValidator(
+            _allowed_mime_types(
+                *_STRUCTURED_IMAGE_MIME_TYPES,
+                error_msg="Markdown images must be GIF, JPEG, PNG, or TIFF files.",
+            )
+        ),
+        PlainSerializer(_serialize_file_id_list),
+    ] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _build_wire_options(cls, value: Any) -> Any:
+        return _nest_structured_text_payload(value, "markdown")
+
+
+class ConvertPlainTextToPdfPayload(_BaseStructuredTextToPdfPayload):
+    files: _StructuredPlainTextFiles
+    structured_text_options: _StructuredTextPlainTextConversionOptions | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _build_wire_options(cls, value: Any) -> Any:
+        return _nest_structured_text_payload(value, "plain_text")
+
+
+class ConvertJsonToPdfPayload(_BaseStructuredTextToPdfPayload):
+    files: _StructuredJsonFiles
+    structured_text_options: _StructuredTextDataConversionOptions | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _build_wire_options(cls, value: Any) -> Any:
+        return _nest_structured_text_payload(value, "json")
+
+
+class ConvertXmlToPdfPayload(_BaseStructuredTextToPdfPayload):
+    files: _StructuredXmlFiles
+    structured_text_options: _StructuredTextDataConversionOptions | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _build_wire_options(cls, value: Any) -> Any:
+        return _nest_structured_text_payload(value, "xml")
+
+
+class ConvertCsvToPdfPayload(_BaseStructuredTextToPdfPayload):
+    files: _StructuredCsvFiles
+    structured_text_options: _StructuredTextCsvConversionOptions | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _build_wire_options(cls, value: Any) -> Any:
+        return _nest_structured_text_payload(value, "csv")
 
 
 class TranslatePdfTextPayload(BaseModel):
