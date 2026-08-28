@@ -1,0 +1,4 @@
+Quarterly service summary
+
+Availability improved during the quarter while response times remained stable.
+The next release focuses on accessibility and document-generation workflows.
