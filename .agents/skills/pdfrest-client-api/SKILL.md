@@ -196,6 +196,16 @@ Follow `TESTING_GUIDELINES.md` and the live-test requirements in `AGENTS.md`.
 - Cover default and non-default options, accepted literals, numeric bounds,
   MIME/cardinality/dependency rules, and every meaningful response attribute.
   Extend a shared validation suite when a rule applies to a model family.
+- Treat each public text `Literal` as both a documentation and test contract.
+  Give its `TypeAlias` a PEP 258 docstring immediately after the assignment:
+  explain the option, then provide an `Accepted values:` Markdown list with one
+  bullet per literal spelling and its user-visible meaning. Derive those
+  meanings from the OpenAPI contract or verified server behavior. Parameterize
+  every accepted spelling with a readable test ID in payload tests and in
+  distinct sync and async client tests; matching live tests must send every
+  spelling through both transports. Do not use one representative happy path.
+  Add an invalid spelling through `extra_body` when a server-side rejection must
+  be demonstrated. This is the evidence expected by `pr-review-auditor`.
 - For a payload containing a discriminated JSON-object union, add a direct
   serialization assertion for every discriminator and distinct sync/async client
   tests that send each form. Parameterize all `ge`/`gt`/`le`/`lt` constraints at
@@ -289,6 +299,10 @@ documentation with its types; do not hand-copy a shape schema into Markdown.
 - For a public union alias, declare it as `Name: TypeAlias = ...` and add its
   PEP 258 attribute docstring immediately after the assignment. The docstring
   must identify the union members and link to the consuming client helper.
+- For a public text `Literal` alias, use the same immediate PEP 258 docstring
+  placement and an `Accepted values:` list whose bullets document each literal
+  spelling and meaning. Inspect generated HTML to confirm the list renders with
+  the alias rather than only in the source file.
 - Public types are re-exported through `pdfrest.types`. Verify that the rendered
   reference resolves the re-export to its source union and member types. A
   self-reference such as `PdfAddShapeObject = PdfAddShapeObject` is a rendering
