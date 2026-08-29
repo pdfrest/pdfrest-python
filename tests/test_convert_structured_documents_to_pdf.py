@@ -536,8 +536,45 @@ def test_payloads_reject_invalid_literals_and_boundaries(
         payload_model.model_validate({"files": source, **options})
 
 
-def test_sync_client_rejects_invalid_markdown_before_transport() -> None:
-    source = _make_format_file(".txt", "text/plain")
+@pytest.mark.parametrize(
+    ("method_name", "expected_extension", "expected_mime_type", "expected_message"),
+    [
+        ("convert_markdown_to_pdf", ".md", "text/markdown", "Must be a Markdown file"),
+        (
+            "convert_plain_text_to_pdf",
+            ".txt",
+            "text/plain",
+            "Must be a plain text file",
+        ),
+        ("convert_json_to_pdf", ".json", "application/json", "Must be a JSON file"),
+        ("convert_xml_to_pdf", ".xml", "application/xml", "Must be an XML file"),
+        ("convert_csv_to_pdf", ".csv", "text/csv", "Must be a CSV file"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("foreign_extension", "foreign_mime_type"),
+    [
+        (".md", "text/markdown"),
+        (".txt", "text/plain"),
+        (".json", "application/json"),
+        (".xml", "application/xml"),
+        (".csv", "text/csv"),
+    ],
+)
+def test_sync_structured_conversions_reject_foreign_files_before_transport(
+    method_name: str,
+    expected_extension: str,
+    expected_mime_type: str,
+    expected_message: str,
+    foreign_extension: str,
+    foreign_mime_type: str,
+) -> None:
+    if (foreign_extension, foreign_mime_type) == (
+        expected_extension,
+        expected_mime_type,
+    ):
+        pytest.skip("matching structured document format")
+    source = _make_format_file(foreign_extension, foreign_mime_type)
 
     def fail_transport(_: httpx.Request) -> httpx.Response:
         pytest.fail("transport should not be called")
@@ -546,14 +583,51 @@ def test_sync_client_rejects_invalid_markdown_before_transport() -> None:
         PdfRestClient(
             api_key=VALID_API_KEY, transport=httpx.MockTransport(fail_transport)
         ) as client,
-        pytest.raises(ValidationError, match="Must be a Markdown file"),
+        pytest.raises(ValidationError, match=expected_message),
     ):
-        client.convert_markdown_to_pdf(source)
+        getattr(client, method_name)(source)
 
 
 @pytest.mark.asyncio
-async def test_async_client_rejects_invalid_csv_before_transport() -> None:
-    source = _make_format_file(".json", "application/json")
+@pytest.mark.parametrize(
+    ("method_name", "expected_extension", "expected_mime_type", "expected_message"),
+    [
+        ("convert_markdown_to_pdf", ".md", "text/markdown", "Must be a Markdown file"),
+        (
+            "convert_plain_text_to_pdf",
+            ".txt",
+            "text/plain",
+            "Must be a plain text file",
+        ),
+        ("convert_json_to_pdf", ".json", "application/json", "Must be a JSON file"),
+        ("convert_xml_to_pdf", ".xml", "application/xml", "Must be an XML file"),
+        ("convert_csv_to_pdf", ".csv", "text/csv", "Must be a CSV file"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("foreign_extension", "foreign_mime_type"),
+    [
+        (".md", "text/markdown"),
+        (".txt", "text/plain"),
+        (".json", "application/json"),
+        (".xml", "application/xml"),
+        (".csv", "text/csv"),
+    ],
+)
+async def test_async_structured_conversions_reject_foreign_files_before_transport(
+    method_name: str,
+    expected_extension: str,
+    expected_mime_type: str,
+    expected_message: str,
+    foreign_extension: str,
+    foreign_mime_type: str,
+) -> None:
+    if (foreign_extension, foreign_mime_type) == (
+        expected_extension,
+        expected_mime_type,
+    ):
+        pytest.skip("matching structured document format")
+    source = _make_format_file(foreign_extension, foreign_mime_type)
 
     def fail_transport(_: httpx.Request) -> httpx.Response:
         pytest.fail("transport should not be called")
@@ -561,8 +635,8 @@ async def test_async_client_rejects_invalid_csv_before_transport() -> None:
     async with AsyncPdfRestClient(
         api_key=ASYNC_API_KEY, transport=httpx.MockTransport(fail_transport)
     ) as client:
-        with pytest.raises(ValidationError, match="Must be a CSV file"):
-            await client.convert_csv_to_pdf(source)
+        with pytest.raises(ValidationError, match=expected_message):
+            await getattr(client, method_name)(source)
 
 
 def test_convert_markdown_to_pdf_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -748,11 +822,24 @@ async def test_async_convert_csv_to_pdf_success(
     assert response.output_file.type == "application/pdf"
 
 
-def test_convert_markdown_to_pdf_request_customization(
+@pytest.mark.parametrize(
+    ("method_name", "extension", "mime_type"),
+    [
+        ("convert_markdown_to_pdf", ".md", "text/markdown"),
+        ("convert_plain_text_to_pdf", ".txt", "text/plain"),
+        ("convert_json_to_pdf", ".json", "application/json"),
+        ("convert_xml_to_pdf", ".xml", "application/xml"),
+        ("convert_csv_to_pdf", ".csv", "text/csv"),
+    ],
+)
+def test_structured_conversions_request_customization(
     monkeypatch: pytest.MonkeyPatch,
+    method_name: str,
+    extension: str,
+    mime_type: str,
 ) -> None:
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
-    source = _make_format_file(".md", "text/markdown")
+    source = _make_format_file(extension, mime_type)
     output_id = str(PdfRestFileID.generate())
     captured_timeout: dict[str, float] = {}
 
@@ -773,22 +860,40 @@ def test_convert_markdown_to_pdf_request_customization(
     with PdfRestClient(
         api_key=VALID_API_KEY, transport=httpx.MockTransport(handler)
     ) as client:
-        client.convert_markdown_to_pdf(
+        getattr(client, method_name)(
             source,
             extra_query={"trace": "sync"},
             extra_headers={"X-Debug": "sync"},
             extra_body={"debug": True},
             timeout=0.5,
         )
-    assert all(value == pytest.approx(0.5) for value in captured_timeout.values())
+    assert captured_timeout == {
+        "connect": pytest.approx(0.5),
+        "read": pytest.approx(0.5),
+        "write": pytest.approx(0.5),
+        "pool": pytest.approx(0.5),
+    }
 
 
 @pytest.mark.asyncio
-async def test_async_convert_csv_to_pdf_request_customization(
+@pytest.mark.parametrize(
+    ("method_name", "extension", "mime_type"),
+    [
+        ("convert_markdown_to_pdf", ".md", "text/markdown"),
+        ("convert_plain_text_to_pdf", ".txt", "text/plain"),
+        ("convert_json_to_pdf", ".json", "application/json"),
+        ("convert_xml_to_pdf", ".xml", "application/xml"),
+        ("convert_csv_to_pdf", ".csv", "text/csv"),
+    ],
+)
+async def test_async_structured_conversions_request_customization(
     monkeypatch: pytest.MonkeyPatch,
+    method_name: str,
+    extension: str,
+    mime_type: str,
 ) -> None:
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
-    source = _make_format_file(".csv", "text/csv")
+    source = _make_format_file(extension, mime_type)
     output_id = str(PdfRestFileID.generate())
     captured_timeout: dict[str, float] = {}
 
@@ -809,11 +914,16 @@ async def test_async_convert_csv_to_pdf_request_customization(
     async with AsyncPdfRestClient(
         api_key=ASYNC_API_KEY, transport=httpx.MockTransport(handler)
     ) as client:
-        await client.convert_csv_to_pdf(
+        await getattr(client, method_name)(
             source,
             extra_query={"trace": "async"},
             extra_headers={"X-Debug": "async"},
             extra_body={"debug": True},
             timeout=0.6,
         )
-    assert all(value == pytest.approx(0.6) for value in captured_timeout.values())
+    assert captured_timeout == {
+        "connect": pytest.approx(0.6),
+        "read": pytest.approx(0.6),
+        "write": pytest.approx(0.6),
+        "pool": pytest.approx(0.6),
+    }
