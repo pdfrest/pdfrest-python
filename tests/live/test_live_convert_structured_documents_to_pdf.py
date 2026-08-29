@@ -6,7 +6,14 @@ import pytest
 
 from pdfrest import AsyncPdfRestClient, PdfRestApiError, PdfRestClient
 from pdfrest.models import PdfRestFile, PdfRestFileBasedResponse
-from pdfrest.types import PdfStructuredTextCsvColumn
+from pdfrest.types import (
+    PdfStructuredTextCsvColumn,
+    PdfStructuredTextDataPresentation,
+    PdfStructuredTextLineHandling,
+    PdfStructuredTextMissingImageAltText,
+    PdfStructuredTextPageOrientation,
+    PdfStructuredTextTextAlignment,
+)
 
 from ..resources import get_test_resource_path
 
@@ -71,10 +78,12 @@ async def _run_async(
         return await invoke(client)
 
 
-def test_live_convert_markdown_to_pdf_success(
+@pytest.mark.parametrize("missing_image_alt_text", ["warn", "fail", "artifact"])
+def test_live_convert_markdown_to_pdf_missing_image_alt_text(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    missing_image_alt_text: PdfStructuredTextMissingImageAltText,
 ) -> None:
     source = uploaded_structured_documents["markdown_image"]
     image = uploaded_structured_documents["image"]
@@ -85,71 +94,106 @@ def test_live_convert_markdown_to_pdf_success(
             source,
             image_sources={"company-logo": image},
             image_alt_text={"company-logo": "Datalogics company logo"},
-            missing_image_alt_text="fail",
-            output="live-markdown",
+            missing_image_alt_text=missing_image_alt_text,
+            output=f"live-markdown-{missing_image_alt_text}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-markdown")
+    _assert_structured_pdf(response, source, f"live-markdown-{missing_image_alt_text}")
     assert response.input_ids == [source.id, image.id]
 
 
-def test_live_convert_plain_text_to_pdf_success(
+@pytest.mark.parametrize("line_handling", ["reflow", "preserve"])
+def test_live_convert_plain_text_to_pdf_line_handling(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    line_handling: PdfStructuredTextLineHandling,
 ) -> None:
     source = uploaded_structured_documents["plain_text"]
     response = _run_sync(
         pdfrest_api_key,
         pdfrest_live_base_url,
         lambda client: client.convert_plain_text_to_pdf(
-            source, line_handling="preserve", output="live-plain-text"
+            source,
+            line_handling=line_handling,
+            output=f"live-plain-text-{line_handling}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-plain-text")
+    _assert_structured_pdf(response, source, f"live-plain-text-{line_handling}")
 
 
-def test_live_convert_json_to_pdf_success(
+@pytest.mark.parametrize("orientation", ["auto", "portrait", "landscape"])
+def test_live_convert_plain_text_to_pdf_page_orientation(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    orientation: PdfStructuredTextPageOrientation,
+) -> None:
+    source = uploaded_structured_documents["plain_text"]
+    response = _run_sync(
+        pdfrest_api_key,
+        pdfrest_live_base_url,
+        lambda client: client.convert_plain_text_to_pdf(
+            source,
+            page_setup={"orientation": orientation},
+            output=f"live-plain-text-orientation-{orientation}",
+        ),
+    )
+    _assert_structured_pdf(
+        response, source, f"live-plain-text-orientation-{orientation}"
+    )
+
+
+@pytest.mark.parametrize("data_presentation", ["source", "hierarchy"])
+def test_live_convert_json_to_pdf_data_presentation(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    data_presentation: PdfStructuredTextDataPresentation,
 ) -> None:
     source = uploaded_structured_documents["json"]
     response = _run_sync(
         pdfrest_api_key,
         pdfrest_live_base_url,
         lambda client: client.convert_json_to_pdf(
-            source, data_presentation="hierarchy", output="live-json"
+            source,
+            data_presentation=data_presentation,
+            output=f"live-json-{data_presentation}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-json")
+    _assert_structured_pdf(response, source, f"live-json-{data_presentation}")
 
 
-def test_live_convert_xml_to_pdf_success(
+@pytest.mark.parametrize("data_presentation", ["source", "hierarchy"])
+def test_live_convert_xml_to_pdf_data_presentation(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    data_presentation: PdfStructuredTextDataPresentation,
 ) -> None:
     source = uploaded_structured_documents["xml"]
     response = _run_sync(
         pdfrest_api_key,
         pdfrest_live_base_url,
         lambda client: client.convert_xml_to_pdf(
-            source, data_presentation="source", output="live-xml"
+            source,
+            data_presentation=data_presentation,
+            output=f"live-xml-{data_presentation}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-xml")
+    _assert_structured_pdf(response, source, f"live-xml-{data_presentation}")
 
 
-def test_live_convert_csv_to_pdf_success(
+@pytest.mark.parametrize("text_align", ["left", "center", "right"])
+def test_live_convert_csv_to_pdf_text_align(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    text_align: PdfStructuredTextTextAlignment,
 ) -> None:
     source = uploaded_structured_documents["csv"]
     columns = [
-        PdfStructuredTextCsvColumn(index=0, text_align="left", width_weight=2),
-        PdfStructuredTextCsvColumn(index=1, text_align="right", width_weight=1),
+        PdfStructuredTextCsvColumn(index=0, text_align=text_align, width_weight=1)
     ]
     response = _run_sync(
         pdfrest_api_key,
@@ -158,95 +202,150 @@ def test_live_convert_csv_to_pdf_success(
             source,
             first_row_is_header=True,
             columns=columns,
-            output="live-csv",
+            output=f"live-csv-{text_align}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-csv")
+    _assert_structured_pdf(response, source, f"live-csv-{text_align}")
 
 
 @pytest.mark.asyncio
-async def test_live_async_convert_markdown_to_pdf_success(
+@pytest.mark.parametrize("missing_image_alt_text", ["warn", "fail", "artifact"])
+async def test_live_async_convert_markdown_to_pdf_missing_image_alt_text(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    missing_image_alt_text: PdfStructuredTextMissingImageAltText,
 ) -> None:
-    source = uploaded_structured_documents["markdown"]
+    source = uploaded_structured_documents["markdown_image"]
+    image = uploaded_structured_documents["image"]
     response = await _run_async(
         pdfrest_api_key,
         pdfrest_live_base_url,
         lambda client: client.convert_markdown_to_pdf(
-            source, enable_tagging=True, output="live-markdown-async"
+            source,
+            image_sources={"company-logo": image},
+            image_alt_text={"company-logo": "Datalogics company logo"},
+            missing_image_alt_text=missing_image_alt_text,
+            enable_tagging=True,
+            output=f"live-markdown-async-{missing_image_alt_text}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-markdown-async")
+    _assert_structured_pdf(
+        response, source, f"live-markdown-async-{missing_image_alt_text}"
+    )
+    assert response.input_ids == [source.id, image.id]
 
 
 @pytest.mark.asyncio
-async def test_live_async_convert_plain_text_to_pdf_success(
+@pytest.mark.parametrize("line_handling", ["reflow", "preserve"])
+async def test_live_async_convert_plain_text_to_pdf_line_handling(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    line_handling: PdfStructuredTextLineHandling,
 ) -> None:
     source = uploaded_structured_documents["plain_text"]
     response = await _run_async(
         pdfrest_api_key,
         pdfrest_live_base_url,
         lambda client: client.convert_plain_text_to_pdf(
-            source, line_handling="reflow", output="live-plain-text-async"
+            source,
+            line_handling=line_handling,
+            output=f"live-plain-text-async-{line_handling}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-plain-text-async")
+    _assert_structured_pdf(response, source, f"live-plain-text-async-{line_handling}")
 
 
 @pytest.mark.asyncio
-async def test_live_async_convert_json_to_pdf_success(
+@pytest.mark.parametrize("orientation", ["auto", "portrait", "landscape"])
+async def test_live_async_convert_plain_text_to_pdf_page_orientation(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    orientation: PdfStructuredTextPageOrientation,
+) -> None:
+    source = uploaded_structured_documents["plain_text"]
+    response = await _run_async(
+        pdfrest_api_key,
+        pdfrest_live_base_url,
+        lambda client: client.convert_plain_text_to_pdf(
+            source,
+            page_setup={"orientation": orientation},
+            output=f"live-plain-text-async-orientation-{orientation}",
+        ),
+    )
+    _assert_structured_pdf(
+        response, source, f"live-plain-text-async-orientation-{orientation}"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("data_presentation", ["source", "hierarchy"])
+async def test_live_async_convert_json_to_pdf_data_presentation(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    data_presentation: PdfStructuredTextDataPresentation,
 ) -> None:
     source = uploaded_structured_documents["json"]
     response = await _run_async(
         pdfrest_api_key,
         pdfrest_live_base_url,
         lambda client: client.convert_json_to_pdf(
-            source, data_presentation="source", output="live-json-async"
+            source,
+            data_presentation=data_presentation,
+            output=f"live-json-async-{data_presentation}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-json-async")
+    _assert_structured_pdf(response, source, f"live-json-async-{data_presentation}")
 
 
 @pytest.mark.asyncio
-async def test_live_async_convert_xml_to_pdf_success(
+@pytest.mark.parametrize("data_presentation", ["source", "hierarchy"])
+async def test_live_async_convert_xml_to_pdf_data_presentation(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    data_presentation: PdfStructuredTextDataPresentation,
 ) -> None:
     source = uploaded_structured_documents["xml"]
     response = await _run_async(
         pdfrest_api_key,
         pdfrest_live_base_url,
         lambda client: client.convert_xml_to_pdf(
-            source, data_presentation="hierarchy", output="live-xml-async"
+            source,
+            data_presentation=data_presentation,
+            output=f"live-xml-async-{data_presentation}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-xml-async")
+    _assert_structured_pdf(response, source, f"live-xml-async-{data_presentation}")
 
 
 @pytest.mark.asyncio
-async def test_live_async_convert_csv_to_pdf_success(
+@pytest.mark.parametrize("text_align", ["left", "center", "right"])
+async def test_live_async_convert_csv_to_pdf_text_align(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
     uploaded_structured_documents: dict[str, PdfRestFile],
+    text_align: PdfStructuredTextTextAlignment,
 ) -> None:
     source = uploaded_structured_documents["csv"]
     response = await _run_async(
         pdfrest_api_key,
         pdfrest_live_base_url,
         lambda client: client.convert_csv_to_pdf(
-            source, delimiter=",", output="live-csv-async"
+            source,
+            columns=[
+                PdfStructuredTextCsvColumn(
+                    index=0, text_align=text_align, width_weight=1
+                )
+            ],
+            delimiter=",",
+            output=f"live-csv-async-{text_align}",
         ),
     )
-    _assert_structured_pdf(response, source, "live-csv-async")
+    _assert_structured_pdf(response, source, f"live-csv-async-{text_align}")
 
 
 def test_live_convert_json_to_pdf_rejects_invalid_option(
