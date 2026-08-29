@@ -156,19 +156,53 @@ PdfColor = PdfRGBColor | PdfCMYKColor
 PdfTextColor = PdfColor
 
 PdfStructuredTextDataPresentation: TypeAlias = Literal["source", "hierarchy"]
-"""JSON/XML presentation accepted by structured document conversion helpers."""
+"""JSON/XML presentation accepted by structured document conversion helpers.
+
+Accepted values:
+
+- `source`: Preserve JSON or XML syntax and indentation.
+- `hierarchy`: Render JSON or XML as a readable hierarchy.
+"""
 
 PdfStructuredTextPageOrientation: TypeAlias = Literal["auto", "portrait", "landscape"]
-"""Page orientation accepted by structured document conversion helpers."""
+"""Page orientation accepted by structured document conversion helpers.
+
+Accepted values:
+
+- `auto`: Let the converter choose an orientation appropriate for the content.
+- `portrait`: Use portrait page orientation.
+- `landscape`: Use landscape page orientation.
+"""
 
 PdfStructuredTextMissingImageAltText: TypeAlias = Literal["warn", "fail", "artifact"]
-"""Policy for Markdown images that do not have alternate text."""
+"""Policy for Markdown images that do not have alternate text.
+
+Accepted values:
+
+- `warn`: Continue conversion and report missing alternate text according to
+  converter behavior.
+- `fail`: Reject conversion when an image lacks alternate text.
+- `artifact`: Treat an image without alternate text as an artifact.
+"""
 
 PdfStructuredTextLineHandling: TypeAlias = Literal["reflow", "preserve"]
-"""Line-break handling accepted by ``convert_plain_text_to_pdf``."""
+"""Line-break handling accepted by ``convert_plain_text_to_pdf``.
+
+Accepted values:
+
+- `reflow`: Reflow plain-text lines to fit the page width.
+- `preserve`: Preserve source line breaks.
+"""
 
 PdfStructuredTextTextAlignment: TypeAlias = Literal["left", "center", "right"]
-"""CSV column text alignment accepted by ``convert_csv_to_pdf``."""
+"""CSV column text alignment accepted by ``convert_csv_to_pdf``.
+
+Accepted values:
+
+- `left`: Align text to the left of the column.
+- `center`: Center text within the column.
+- `right`: Align text to the right of the column.
+"""
 
 
 class PdfStructuredTextMargin(TypedDict, total=False):
