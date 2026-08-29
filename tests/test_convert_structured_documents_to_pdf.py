@@ -323,6 +323,16 @@ def test_format_payloads_reject_other_file_families_and_multiple_files(
             {"page_setup": {"width": 612}}, "must be provided together", id="page"
         ),
         pytest.param(
+            {"page_setup": {"width": 0, "height": 792}},
+            "greater than 0",
+            id="page-width-lower-bound",
+        ),
+        pytest.param(
+            {"page_setup": {"margin": {"top": -0.1}}},
+            "greater than or equal to 0",
+            id="margin-lower-bound",
+        ),
+        pytest.param(
             {"style": {"text_size": 5}}, "greater than or equal to 6", id="text-size"
         ),
         pytest.param(
@@ -331,9 +341,19 @@ def test_format_payloads_reject_other_file_families_and_multiple_files(
             id="heading-scale",
         ),
         pytest.param(
+            {"style": {"heading_scale": 0}},
+            "greater than 0",
+            id="heading-scale-lower-bound",
+        ),
+        pytest.param(
             {"table_style": {"border_width": 12.1}},
             "less than or equal to 12",
             id="border",
+        ),
+        pytest.param(
+            {"table_style": {"border_width": -0.1}},
+            "greater than or equal to 0",
+            id="border-lower-bound",
         ),
         pytest.param(
             {"table_style": {"cell_padding": {"top": 73}}},
@@ -341,9 +361,24 @@ def test_format_payloads_reject_other_file_families_and_multiple_files(
             id="padding",
         ),
         pytest.param(
+            {"table_style": {"cell_padding": {"top": -0.1}}},
+            "greater than or equal to 0",
+            id="padding-lower-bound",
+        ),
+        pytest.param(
             {"style": {"text_color_rgb": (0, 0, 256)}},
             "less than or equal to 255",
             id="rgb",
+        ),
+        pytest.param(
+            {"style": {"text_color_rgb": (-1, 0, 0)}},
+            "greater than or equal to 0",
+            id="rgb-lower-bound",
+        ),
+        pytest.param(
+            {"table_style": {"column_width_weights": [0]}},
+            "greater than 0",
+            id="column-width-weight-lower-bound",
         ),
         pytest.param(
             {"image_alt_text": {"logo": ""}}, "at least 1 character", id="alt-text"
@@ -519,9 +554,23 @@ def test_markdown_payload_accepts_numeric_boundaries(options: dict[str, Any]) ->
         pytest.param(
             ConvertCsvToPdfPayload,
             (".csv", "text/csv"),
+            {"delimiter": ""},
+            "at least 1 character",
+            id="delimiter-lower-bound",
+        ),
+        pytest.param(
+            ConvertCsvToPdfPayload,
+            (".csv", "text/csv"),
             {"columns": [{"index": -1}]},
             "greater than or equal to 0",
             id="column-index",
+        ),
+        pytest.param(
+            ConvertCsvToPdfPayload,
+            (".csv", "text/csv"),
+            {"columns": [{"index": 0, "width_weight": 0}]},
+            "greater than 0",
+            id="column-width-weight-lower-bound",
         ),
     ],
 )
