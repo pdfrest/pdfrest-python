@@ -22,6 +22,26 @@ uv run pre-commit install
 uv run python -c "import pdfrest; print(pdfrest.__version__)"
 ```
 
+## Adding or evolving a client API
+
+When asking Codex to add a documented pdfRest endpoint or a compatible parameter
+to an existing endpoint, begin the prompt with the repository-local
+`$pdfrest-client-api` skill. Include the Jira work item key when one exists. The
+PDFCloud-API checkout and its documented OpenAPI operation must be available
+before using the skill. Prefer adding the neighboring PDFCloud-API directory to
+the Codex project so the skill can read the contract directly. For example:
+
+```text
+$pdfrest-client-api PDFCLOUD-6233: Add the documented PDFCloud-API operation
+for ...
+```
+
+The skill uses the PDFCloud-API OpenAPI specification as the contract; keeps the
+sync and async clients aligned; puts wire serialization and validation in
+Pydantic payload models; preserves existing caller behavior; and requires
+focused unit coverage plus matching live endpoint tests. It also handles the
+versioning required for a newly added public API.
+
 ## Code quality checks
 
 Run these before opening a PR:
@@ -57,6 +77,22 @@ To reuse existing coverage JSON without rerunning tests:
 ```bash
 uvx nox -s class-coverage -- --no-tests
 ```
+
+### Live tests
+
+Live tests require `PDFREST_API_KEY`. By default, the test fixture tries the
+local service, the development service, and then the production service. To run
+against a specific reachable pdfRest deployment first, set
+`PDFREST_LIVE_BASE_URL` to its base URL:
+
+```bash
+export PDFREST_API_KEY="..."
+export PDFREST_LIVE_BASE_URL="https://pdfrest.example.com"
+uvx nox -s tests-3.11 -- tests/live
+```
+
+If that URL is unavailable, the fixture continues with its normal fallback URLs
+and fails only when none are reachable.
 
 ## Examples
 
