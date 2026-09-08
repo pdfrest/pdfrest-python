@@ -81,7 +81,8 @@ Use this group to add visible content or remove sensitive content.
 
 - Add overlays:
   [add_text_to_pdf][pdfrest.PdfRestClient.add_text_to_pdf],
-  [add_image_to_pdf][pdfrest.PdfRestClient.add_image_to_pdf]
+  [add_image_to_pdf][pdfrest.PdfRestClient.add_image_to_pdf],
+  [add_shapes_to_pdf][pdfrest.PdfRestClient.add_shapes_to_pdf]
 - Watermarking:
   [watermark_pdf_with_text][pdfrest.PdfRestClient.watermark_pdf_with_text],
   [watermark_pdf_with_image][pdfrest.PdfRestClient.watermark_pdf_with_image]
@@ -134,7 +135,12 @@ formats.
   [convert_email_to_pdf][pdfrest.PdfRestClient.convert_email_to_pdf],
   [convert_image_to_pdf][pdfrest.PdfRestClient.convert_image_to_pdf],
   [convert_html_to_pdf][pdfrest.PdfRestClient.convert_html_to_pdf],
-  [convert_url_to_pdf][pdfrest.PdfRestClient.convert_url_to_pdf]
+  [convert_url_to_pdf][pdfrest.PdfRestClient.convert_url_to_pdf],
+  [convert_markdown_to_pdf][pdfrest.PdfRestClient.convert_markdown_to_pdf],
+  [convert_plain_text_to_pdf][pdfrest.PdfRestClient.convert_plain_text_to_pdf],
+  [convert_json_to_pdf][pdfrest.PdfRestClient.convert_json_to_pdf],
+  [convert_xml_to_pdf][pdfrest.PdfRestClient.convert_xml_to_pdf],
+  [convert_csv_to_pdf][pdfrest.PdfRestClient.convert_csv_to_pdf]
 - Out of PDF:
   [convert_to_word][pdfrest.PdfRestClient.convert_to_word],
   [convert_to_excel][pdfrest.PdfRestClient.convert_to_excel],

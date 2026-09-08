@@ -76,13 +76,18 @@ from .models import (
 from .models._internal import (
     BasePdfRestGraphicPayload,
     BmpPdfRestPayload,
+    ConvertCsvToPdfPayload,
     ConvertEmailToPdfPayload,
     ConvertHtmlToPdfPayload,
     ConvertImageToPdfPayload,
+    ConvertJsonToPdfPayload,
+    ConvertMarkdownToPdfPayload,
     ConvertOfficeToPdfPayload,
+    ConvertPlainTextToPdfPayload,
     ConvertPostscriptToPdfPayload,
     ConvertToMarkdownPayload,
     ConvertUrlToPdfPayload,
+    ConvertXmlToPdfPayload,
     DeletePayload,
     ExtractImagesPayload,
     ExtractTextPayload,
@@ -91,6 +96,7 @@ from .models._internal import (
     OcrPdfPayload,
     PdfAddAttachmentPayload,
     PdfAddImagePayload,
+    PdfAddShapesPayload,
     PdfAddTextPayload,
     PdfBlankPayload,
     PdfCompressPayload,
@@ -144,6 +150,7 @@ from .types import (
     HtmlWebLayout,
     JpegColorModel,
     OcrLanguage,
+    PdfAddShapeObject,
     PdfAddTextObject,
     PdfAType,
     PdfConversionCompression,
@@ -160,6 +167,14 @@ from .types import (
     PdfRGBColor,
     PdfSignatureConfiguration,
     PdfSignatureCredentials,
+    PdfStructuredTextCsvColumn,
+    PdfStructuredTextDataPresentation,
+    PdfStructuredTextImageSources,
+    PdfStructuredTextLineHandling,
+    PdfStructuredTextMissingImageAltText,
+    PdfStructuredTextPageSetup,
+    PdfStructuredTextStyle,
+    PdfStructuredTextTableStyle,
     PdfTextColor,
     PdfXType,
     PngColorModel,
@@ -3453,6 +3468,59 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def add_shapes_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        shape_objects: PdfAddShapeObject | Sequence[PdfAddShapeObject],
+        tag_enabled: bool | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Draw one or more lines or rectangles onto a PDF.
+
+        Coordinates use PDF units with the origin in the lower-left corner.
+        Set ``tag_enabled=True`` when any shape includes tagging metadata.
+
+        Args:
+            file: Uploaded PDF file as a `PdfRestFile` object.
+            shape_objects: Line or rectangle objects to draw onto the document.
+            tag_enabled: Enable tagging for newly added shapes.
+            output: Output filename prefix used by pdfRest when creating files.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response returned by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "shape_objects": shape_objects,
+        }
+        if tag_enabled is not None:
+            payload["tag_enabled"] = tag_enabled
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/pdf-with-added-shapes",
+            payload=payload,
+            payload_model=PdfAddShapesPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def add_image_to_pdf(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -5129,6 +5197,327 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def convert_markdown_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        include_unrendered_html: bool | None = None,
+        image_alt_text: Mapping[str, str] | None = None,
+        missing_image_alt_text: PdfStructuredTextMissingImageAltText | None = None,
+        image_sources: PdfStructuredTextImageSources | None = None,
+        table_style: PdfStructuredTextTableStyle | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Convert an uploaded Markdown document to PDF.
+
+        Args:
+            file: One uploaded ``.md`` or ``.markdown`` file.
+            title: Optional PDF document title.
+            language: Optional document language, typically a BCP 47 tag.
+            enable_tagging: Enable or disable tagged PDF output.
+            page_setup: Structured page geometry and margins in PDF points.
+            style: Typography shared by structured document conversions.
+            include_unrendered_html: Preserve unsupported raw HTML as text.
+            image_alt_text: Alternate text keyed by Markdown image target.
+            missing_image_alt_text: Policy for images without alternate text.
+            image_sources: Uploaded image resources keyed by Markdown target.
+            table_style: Markdown table presentation settings.
+            output: Output filename prefix used by pdfRest.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the generated PDF.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "include_unrendered_html": include_unrendered_html,
+            "image_alt_text": image_alt_text,
+            "missing_image_alt_text": missing_image_alt_text,
+            "image_sources": image_sources,
+            "table_style": table_style,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertMarkdownToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    def convert_plain_text_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        line_handling: PdfStructuredTextLineHandling | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Convert an uploaded plain-text document to PDF.
+
+        Args:
+            file: One uploaded ``.txt`` file.
+            title: Optional PDF document title.
+            language: Optional document language, typically a BCP 47 tag.
+            enable_tagging: Enable or disable tagged PDF output.
+            page_setup: Structured page geometry and margins in PDF points.
+            style: Typography shared by structured document conversions.
+            line_handling: Reflow source lines or preserve their line breaks.
+            output: Output filename prefix used by pdfRest.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the generated PDF.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "line_handling": line_handling,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertPlainTextToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    def convert_json_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        data_presentation: PdfStructuredTextDataPresentation | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Convert an uploaded JSON document to PDF.
+
+        Args:
+            file: One uploaded ``.json`` file.
+            title: Optional PDF document title.
+            language: Optional document language, typically a BCP 47 tag.
+            enable_tagging: Enable or disable tagged PDF output.
+            page_setup: Structured page geometry and margins in PDF points.
+            style: Typography shared by structured document conversions.
+            data_presentation: Preserve JSON source or render its hierarchy.
+            output: Output filename prefix used by pdfRest.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the generated PDF.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "data_presentation": data_presentation,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertJsonToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    def convert_xml_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        data_presentation: PdfStructuredTextDataPresentation | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Convert an uploaded XML document to PDF.
+
+        Args:
+            file: One uploaded ``.xml`` file.
+            title: Optional PDF document title.
+            language: Optional document language, typically a BCP 47 tag.
+            enable_tagging: Enable or disable tagged PDF output.
+            page_setup: Structured page geometry and margins in PDF points.
+            style: Typography shared by structured document conversions.
+            data_presentation: Preserve XML source or render its hierarchy.
+            output: Output filename prefix used by pdfRest.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the generated PDF.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "data_presentation": data_presentation,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertXmlToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    def convert_csv_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        first_row_is_header: bool | None = None,
+        delimiter: str | None = None,
+        columns: Sequence[PdfStructuredTextCsvColumn] | None = None,
+        table_style: PdfStructuredTextTableStyle | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Convert an uploaded CSV document to PDF.
+
+        Args:
+            file: One uploaded ``.csv`` file.
+            title: Optional PDF document title.
+            language: Optional document language, typically a BCP 47 tag.
+            enable_tagging: Enable or disable tagged PDF output.
+            page_setup: Structured page geometry and margins in PDF points.
+            style: Typography shared by structured document conversions.
+            first_row_is_header: Treat the first CSV row as table headers.
+            delimiter: One-character CSV field delimiter.
+            columns: Per-column index, alignment, and width overrides.
+            table_style: CSV table presentation settings.
+            output: Output filename prefix used by pdfRest.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the generated PDF.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "first_row_is_header": first_row_is_header,
+            "delimiter": delimiter,
+            "columns": columns,
+            "table_style": table_style,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertCsvToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def watermark_pdf_with_text(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -6442,6 +6831,59 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/pdf-with-added-text",
             payload=payload,
             payload_model=PdfAddTextPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def add_shapes_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        shape_objects: PdfAddShapeObject | Sequence[PdfAddShapeObject],
+        tag_enabled: bool | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronous variant of [PdfRestClient.add_shapes_to_pdf][pdfrest.PdfRestClient.add_shapes_to_pdf].
+
+        Coordinates use PDF units with the origin in the lower-left corner.
+        Set ``tag_enabled=True`` when any shape includes tagging metadata.
+
+        Args:
+            file: Uploaded PDF file as a `PdfRestFile` object.
+            shape_objects: Line or rectangle objects to draw onto the document.
+            tag_enabled: Enable tagging for newly added shapes.
+            output: Output filename prefix used by pdfRest when creating files.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response returned by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "shape_objects": shape_objects,
+        }
+        if tag_enabled is not None:
+            payload["tag_enabled"] = tag_enabled
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/pdf-with-added-shapes",
+            payload=payload,
+            payload_model=PdfAddShapesPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
@@ -8189,6 +8631,210 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/pdf",
             payload=payload,
             payload_model=ConvertUrlToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def convert_markdown_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        include_unrendered_html: bool | None = None,
+        image_alt_text: Mapping[str, str] | None = None,
+        missing_image_alt_text: PdfStructuredTextMissingImageAltText | None = None,
+        image_sources: PdfStructuredTextImageSources | None = None,
+        table_style: PdfStructuredTextTableStyle | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronous variant of [PdfRestClient.convert_markdown_to_pdf][pdfrest.PdfRestClient.convert_markdown_to_pdf]."""
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "include_unrendered_html": include_unrendered_html,
+            "image_alt_text": image_alt_text,
+            "missing_image_alt_text": missing_image_alt_text,
+            "image_sources": image_sources,
+            "table_style": table_style,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return await self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertMarkdownToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def convert_plain_text_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        line_handling: PdfStructuredTextLineHandling | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronous variant of [PdfRestClient.convert_plain_text_to_pdf][pdfrest.PdfRestClient.convert_plain_text_to_pdf]."""
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "line_handling": line_handling,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return await self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertPlainTextToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def convert_json_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        data_presentation: PdfStructuredTextDataPresentation | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronous variant of [PdfRestClient.convert_json_to_pdf][pdfrest.PdfRestClient.convert_json_to_pdf]."""
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "data_presentation": data_presentation,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return await self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertJsonToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def convert_xml_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        data_presentation: PdfStructuredTextDataPresentation | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronous variant of [PdfRestClient.convert_xml_to_pdf][pdfrest.PdfRestClient.convert_xml_to_pdf]."""
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "data_presentation": data_presentation,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return await self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertXmlToPdfPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def convert_csv_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        title: str | None = None,
+        language: str | None = None,
+        enable_tagging: bool | None = None,
+        page_setup: PdfStructuredTextPageSetup | None = None,
+        style: PdfStructuredTextStyle | None = None,
+        first_row_is_header: bool | None = None,
+        delimiter: str | None = None,
+        columns: Sequence[PdfStructuredTextCsvColumn] | None = None,
+        table_style: PdfStructuredTextTableStyle | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronous variant of [PdfRestClient.convert_csv_to_pdf][pdfrest.PdfRestClient.convert_csv_to_pdf]."""
+        payload: dict[str, Any] = {
+            "files": file,
+            "title": title,
+            "language": language,
+            "enable_tagging": enable_tagging,
+            "page_setup": page_setup,
+            "style": style,
+            "first_row_is_header": first_row_is_header,
+            "delimiter": delimiter,
+            "columns": columns,
+            "table_style": table_style,
+            "output": output,
+        }
+        payload = {key: value for key, value in payload.items() if value is not None}
+        return await self._post_file_operation(
+            endpoint="/pdf",
+            payload=payload,
+            payload_model=ConvertCsvToPdfPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
