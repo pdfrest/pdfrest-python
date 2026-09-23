@@ -23,6 +23,12 @@ an existing helper, such as an added server parameter.
 - Treat the selected OpenAPI operation, schemas, media types, documented errors,
   and async/polling behavior as the public contract. Inspect API source only to
   clarify behavior absent from, or apparently inconsistent with, that contract.
+- Treat indirect string constraints as discovery tasks, not evidence that a
+  field is free-form. Examples include "whatever the CLU accepts," "named size
+  such as `Letter` or `A4`," and "see the Font List." Follow referenced links
+  and trace wrapper validation into the converter or CLU contract where
+  available. A wrapper that accepts a non-empty string and forwards it to an
+  opaque converter does not establish the converter's accepted values.
 - Do not edit PDFCloud-API unless the user explicitly requests an API-contract
   change.
 - Stop and ask the user for direction if the checkout is missing, the requested
@@ -166,8 +172,19 @@ validation and turns them into the exact pdfRest wire contract.
   implementation or converter source. Examples such as `Letter` or `A4` do not
   establish the full page-size set; a link to a font list does not make an
   unrestricted font name a useful public contract. Check spelling, case,
-  aliases, and whether values depend on the deployment. Do not invent a closed
-  catalog or silently contradict the selected OpenAPI contract.
+  aliases, and whether values depend on the deployment. Determine whether each
+  recovered list is exhaustive or merely names known values in an open catalog.
+  Do not invent a closed catalog or silently contradict the selected OpenAPI
+  contract.
+- When OpenAPI omits a constraint and a linked document, API implementation, or
+  converter/CLU source supplies it, tell the user before implementing the
+  affected field and in the handoff: identify the field path, the OpenAPI gap,
+  the fallback source, whether the catalog is closed or open, and any unverified
+  deployment behavior. If the sources conflict, report the conflict and ask for
+  direction rather than silently choosing one. If the accepted values or syntax
+  still cannot be established, name the missing information and ask before
+  implementing that field; do not silently leave a suspected enumeration as
+  `str` or narrow it to example values.
 - For a verified closed catalog, define a reusable public `Literal` alias in
   `pdfrest.types` and use it in the client input, every applicable `TypedDict`
   field, and the internal payload model so invalid values fail before transport.
