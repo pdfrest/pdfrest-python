@@ -128,7 +128,9 @@ iteration required.
 - Include invalid literals (such as `"extreme"` compression levels, unsupported
   `color_model` values, or smoothing arrays containing
   duplicates/more-than-allowed entries) to ensure validation errors remain
-  descriptive—use `re.escape(...)` when asserting.
+  descriptive—use `re.escape(...)` when asserting. A published-name literal
+  combined with open `str` is different: an unlisted non-empty name is valid,
+  while an empty name should fail local shape validation.
 - For numeric fields (resolution, DPI, percentages, counts, radii, opacity,
   etc.), exercise the extremes: the documented minimum/maximum, the first legal
   value just inside each bound, and at least one value just outside the range.
@@ -214,9 +216,13 @@ iteration required.
   customization (`extra_query`, `extra_headers`, `extra_body`, `timeout`) as a
   unit-test responsibility unless the endpoint exposes server-observable
   behavior tied to those options.
-- **Enumerate literals:** Parameterize over every accepted literal (compression
-  levels, `color_model`, `smoothing`, merge selectors, redaction presets). Each
-  literal should hit the server once per transport.
+- **Enumerate closed literals:** Parameterize over every accepted literal
+  (compression levels, `color_model`, `smoothing`, merge selectors, redaction
+  presets). Each value should hit the server once per transport. When a literal
+  supplies known names inside an open `Literal[...] | str` union, cover every
+  listed spelling in payload and sync/async client tests, then live-test
+  representative listed and unlisted names through both transports; server
+  availability of a particular installed font may vary.
 - **Optional arguments:** Exercise options such as custom output prefixes,
   diagnostics toggles, merge metadata, and URL uploads. Validate the server
   honors them (filenames start with the user-provided prefix, warnings appear
