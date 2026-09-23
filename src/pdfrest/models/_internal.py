@@ -39,9 +39,11 @@ from ..types import (
     PdfPresetColorProfile,
     PdfRestriction,
     PdfStructuredTextDataPresentation,
+    PdfStructuredTextFontName,
     PdfStructuredTextLineHandling,
     PdfStructuredTextMissingImageAltText,
     PdfStructuredTextPageOrientation,
+    PdfStructuredTextPageSize,
     PdfStructuredTextTextAlignment,
     PdfXType,
     SummaryFormat,
@@ -942,6 +944,7 @@ _StructuredRgbColor = tuple[
 ]
 _PositiveStructuredNumber = Annotated[float, Field(gt=0)]
 _NonEmptyStructuredString = Annotated[str, Field(min_length=1)]
+_StructuredTextFontName = Annotated[PdfStructuredTextFontName, Field(min_length=1)]
 
 
 class _StrictStructuredTextModel(BaseModel):
@@ -956,7 +959,7 @@ class _StructuredTextMargin(_StrictStructuredTextModel):
 
 
 class _StructuredTextPageSetup(_StrictStructuredTextModel):
-    size: _NonEmptyStructuredString | None = None
+    size: PdfStructuredTextPageSize | None = None
     width: Annotated[float | None, Field(gt=0)] = None
     height: Annotated[float | None, Field(gt=0)] = None
     orientation: PdfStructuredTextPageOrientation | None = None
@@ -994,12 +997,12 @@ class _StructuredTextTableStyle(_StrictStructuredTextModel):
 
 
 class _StructuredTextStyle(_StrictStructuredTextModel):
-    font: _NonEmptyStructuredString | None = None
-    heading_font: _NonEmptyStructuredString | None = None
-    code_font: _NonEmptyStructuredString | None = None
-    cjk_font: _NonEmptyStructuredString | None = None
+    font: _StructuredTextFontName | None = None
+    heading_font: _StructuredTextFontName | None = None
+    code_font: _StructuredTextFontName | None = None
+    cjk_font: _StructuredTextFontName | None = None
     fallback_fonts: Annotated[
-        list[_NonEmptyStructuredString] | None, Field(min_length=1)
+        list[_StructuredTextFontName] | None, Field(min_length=1)
     ] = None
     text_size: Annotated[float | None, Field(ge=6, le=72)] = None
     text_color_rgb: _StructuredRgbColor | None = None

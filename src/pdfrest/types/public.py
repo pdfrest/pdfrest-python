@@ -61,12 +61,15 @@ __all__ = (
     "PdfStructuredTextCellPadding",
     "PdfStructuredTextCsvColumn",
     "PdfStructuredTextDataPresentation",
+    "PdfStructuredTextFontName",
     "PdfStructuredTextImageSources",
+    "PdfStructuredTextKnownFont",
     "PdfStructuredTextLineHandling",
     "PdfStructuredTextMargin",
     "PdfStructuredTextMissingImageAltText",
     "PdfStructuredTextPageOrientation",
     "PdfStructuredTextPageSetup",
+    "PdfStructuredTextPageSize",
     "PdfStructuredTextStyle",
     "PdfStructuredTextTableStyle",
     "PdfStructuredTextTextAlignment",
@@ -174,6 +177,167 @@ Accepted values:
 - `landscape`: Use landscape page orientation.
 """
 
+PdfStructuredTextPageSize: TypeAlias = Literal[
+    "Letter", "Legal", "Ledger", "A3", "A4", "A5", "Tabloid"
+]
+"""Named page size for structured document conversion.
+
+For a custom size, use ``PdfStructuredTextPageSetup.width`` and ``height``.
+
+Accepted values:
+
+- `Letter`: US letter paper, 612 by 792 PDF points.
+- `Legal`: US legal paper, 612 by 1008 PDF points.
+- `Ledger`: Ledger paper, 1224 by 792 PDF points.
+- `A3`: ISO A3 paper, 842 by 1191 PDF points.
+- `A4`: ISO A4 paper, 595 by 842 PDF points.
+- `A5`: ISO A5 paper, 420 by 595 PDF points.
+- `Tabloid`: Tabloid paper, 792 by 1224 PDF points.
+"""
+
+PdfStructuredTextKnownFont: TypeAlias = Literal[
+    "andalemono",
+    "arial",
+    "arialitalic",
+    "arialbold",
+    "arialblack",
+    "calibri",
+    "calibriitalic",
+    "calibribold",
+    "calibribolditalic",
+    "cambriaitalic",
+    "cambriabold",
+    "cambriabolditalic",
+    "candara",
+    "candaraitalic",
+    "candarabold",
+    "candarabolditalic",
+    "cantarellregular",
+    "cantarelloblique",
+    "cantarellbold",
+    "cantarellboldoblique",
+    "comicsans",
+    "comicsansbold",
+    "constantia",
+    "consolas",
+    "consolasitalic",
+    "consolasbold",
+    "consolasbolditalic",
+    "constantiaitalic",
+    "constantiabold",
+    "constantiabolditalic",
+    "corbel",
+    "corbelitalic",
+    "corbelbold",
+    "corbelbolditalic",
+    "courier",
+    "courieritalic",
+    "courierbold",
+    "courierbolditalic",
+    "dejavu",
+    "dejavu sans mono oblique",
+    "dejavu sans mono bold",
+    "dejavu sans mono bold oblique",
+    "georgia",
+    "georgiaitalic",
+    "georgiabold",
+    "georgiabolditalic",
+    "impact",
+    "tahoma",
+    "timesnewroman",
+    "timesnewromanitalic",
+    "timesnewromanbold",
+    "timesnewromanbolditalic",
+    "trebuchet",
+    "trebuchetitalic",
+    "trebuchetbold",
+    "trebuchetbolditalic",
+    "verdana",
+    "verdanaitalic",
+    "verdanabold",
+    "verdanabolditalic",
+    "webdings",
+]
+"""Published pdfRest font names for structured document conversion.
+
+These are suggestions, not a closed service catalog. An installed font name
+outside this list may also be used through ``PdfStructuredTextFontName``.
+See the [pdfRest Font List](https://pdfrest.com/documentation/fontlist/).
+
+Accepted values:
+
+- `andalemono`: Andale Mono.
+- `arial`: Arial.
+- `arialitalic`: Arial Italic.
+- `arialbold`: Arial Bold.
+- `arialblack`: Arial Black.
+- `calibri`: Calibri.
+- `calibriitalic`: Calibri Italic.
+- `calibribold`: Calibri Bold.
+- `calibribolditalic`: Calibri Bold Italic.
+- `cambriaitalic`: Cambria Italic.
+- `cambriabold`: Cambria Bold.
+- `cambriabolditalic`: Cambria Bold Italic.
+- `candara`: Candara.
+- `candaraitalic`: Candara Italic.
+- `candarabold`: Candara Bold.
+- `candarabolditalic`: Candara Bold Italic.
+- `cantarellregular`: Cantarell.
+- `cantarelloblique`: Cantarell Oblique.
+- `cantarellbold`: Cantarell Bold.
+- `cantarellboldoblique`: Cantarell Bold Oblique.
+- `comicsans`: Comic Sans.
+- `comicsansbold`: Comic Sans Bold.
+- `constantia`: Constantia.
+- `consolas`: Consolas.
+- `consolasitalic`: Consolas Italic.
+- `consolasbold`: Consolas Bold.
+- `consolasbolditalic`: Consolas Bold Italic.
+- `constantiaitalic`: Constantia Italic.
+- `constantiabold`: Constantia Bold.
+- `constantiabolditalic`: Constantia Bold Italic.
+- `corbel`: Corbel.
+- `corbelitalic`: Corbel Italic.
+- `corbelbold`: Corbel Bold.
+- `corbelbolditalic`: Corbel Bold Italic.
+- `courier`: Courier New.
+- `courieritalic`: Courier New Italic.
+- `courierbold`: Courier New Bold.
+- `courierbolditalic`: Courier New Bold Italic.
+- `dejavu`: DejaVu Sans Mono.
+- `dejavu sans mono oblique`: DejaVu Sans Mono Oblique.
+- `dejavu sans mono bold`: DejaVu Sans Mono Bold.
+- `dejavu sans mono bold oblique`: DejaVu Sans Mono Bold Oblique.
+- `georgia`: Georgia.
+- `georgiaitalic`: Georgia Italic.
+- `georgiabold`: Georgia Bold.
+- `georgiabolditalic`: Georgia Bold Italic.
+- `impact`: Impact.
+- `tahoma`: Tahoma.
+- `timesnewroman`: Times New Roman.
+- `timesnewromanitalic`: Times New Roman Italic.
+- `timesnewromanbold`: Times New Roman Bold.
+- `timesnewromanbolditalic`: Times New Roman Bold Italic.
+- `trebuchet`: Trebuchet.
+- `trebuchetitalic`: Trebuchet Italic.
+- `trebuchetbold`: Trebuchet Bold.
+- `trebuchetbolditalic`: Trebuchet Bold Italic.
+- `verdana`: Verdana.
+- `verdanaitalic`: Verdana Italic.
+- `verdanabold`: Verdana Bold.
+- `verdanabolditalic`: Verdana Bold Italic.
+- `webdings`: Webdings.
+"""
+
+PdfStructuredTextFontName: TypeAlias = PdfStructuredTextKnownFont | str
+"""A published pdfRest font token or another font name installed on the service.
+
+Accepted by the ``font``, ``heading_font``, ``code_font``, ``cjk_font``, and
+``fallback_fonts`` fields of ``PdfStructuredTextStyle``. The published tokens
+provide editor suggestions; the ``str`` branch keeps deployment-specific fonts
+available.
+"""
+
 PdfStructuredTextMissingImageAltText: TypeAlias = Literal["warn", "fail", "artifact"]
 """Policy for Markdown images that do not have alternate text.
 
@@ -225,8 +389,8 @@ class PdfStructuredTextPageSetup(TypedDict, total=False):
     """Page geometry for structured document conversion.
 
     Attributes:
-        size: Optional non-empty page-size name understood by pdfRest, such as
-            ``Letter`` or ``A4``.
+        size: Optional named page size. For custom dimensions, supply ``width``
+            and ``height`` instead.
         width: Optional custom page width in PDF points. Must be greater than 0
             and supplied together with ``height``.
         height: Optional custom page height in PDF points. Must be greater than
@@ -236,7 +400,7 @@ class PdfStructuredTextPageSetup(TypedDict, total=False):
         margin: Optional per-side margins in PDF points.
     """
 
-    size: str
+    size: PdfStructuredTextPageSize
     width: float
     height: float
     orientation: PdfStructuredTextPageOrientation
@@ -297,23 +461,30 @@ class PdfStructuredTextTableStyle(TypedDict, total=False):
 class PdfStructuredTextStyle(TypedDict, total=False):
     """Typography shared by all structured document conversion helpers.
 
+    The ``PdfStructuredTextFontName`` type suggests the published
+    ``PdfStructuredTextKnownFont`` values while allowing other names installed
+    on the service. See the
+    [pdfRest Font List](https://pdfrest.com/documentation/fontlist/).
+
     Attributes:
-        font: Optional non-empty body-text font family.
-        heading_font: Optional non-empty heading font family.
-        code_font: Optional non-empty code/preformatted-text font family.
-        cjk_font: Optional non-empty Chinese, Japanese, and Korean font family.
-        fallback_fonts: Optional non-empty ordered fallback-font family list.
+        font: Optional non-empty body-text font name installed on the service.
+        heading_font: Optional non-empty installed heading font name.
+        code_font: Optional non-empty installed code/preformatted-text font name.
+        cjk_font: Optional non-empty installed Chinese, Japanese, or Korean font
+            name. This is a fallback, not a closed catalog.
+        fallback_fonts: Optional non-empty ordered list of installed fallback
+            font names. Availability depends on the service deployment.
         text_size: Optional body-text size in PDF points, from 6 through 72.
         text_color_rgb: Optional RGB body-text color with channels from 0
             through 255.
         heading_scale: Optional heading scale greater than 0 and at most 4.
     """
 
-    font: str
-    heading_font: str
-    code_font: str
-    cjk_font: str
-    fallback_fonts: Sequence[str]
+    font: PdfStructuredTextFontName
+    heading_font: PdfStructuredTextFontName
+    code_font: PdfStructuredTextFontName
+    cjk_font: PdfStructuredTextFontName
+    fallback_fonts: Sequence[PdfStructuredTextFontName]
     text_size: float
     text_color_rgb: PdfRGBColor
     heading_scale: float

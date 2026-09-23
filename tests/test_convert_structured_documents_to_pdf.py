@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast, get_args
 
 import httpx
 import pytest
@@ -17,6 +17,13 @@ from pdfrest.models._internal import (
     ConvertPlainTextToPdfPayload,
     ConvertXmlToPdfPayload,
 )
+from pdfrest.types import (
+    PdfStructuredTextFontName,
+    PdfStructuredTextKnownFont,
+    PdfStructuredTextPageSetup,
+    PdfStructuredTextPageSize,
+    PdfStructuredTextStyle,
+)
 
 from .convert_to_pdf_test_helpers import make_source_file
 from .graphics_test_helpers import (
@@ -25,6 +32,20 @@ from .graphics_test_helpers import (
     build_file_info_payload,
     make_image_file,
 )
+
+NAMED_PAGE_SIZES = [
+    pytest.param("Letter", id="letter"),
+    pytest.param("Legal", id="legal"),
+    pytest.param("Ledger", id="ledger"),
+    pytest.param("A3", id="a3"),
+    pytest.param("A4", id="a4"),
+    pytest.param("A5", id="a5"),
+    pytest.param("Tabloid", id="tabloid"),
+]
+KNOWN_FONTS = [
+    pytest.param(value, id=value.replace(" ", "-"))
+    for value in get_args(PdfStructuredTextKnownFont)
+]
 
 
 def _dump_payload(model: BaseModel) -> dict[str, Any]:
@@ -424,6 +445,94 @@ def test_page_setup_accepts_every_orientation(orientation: str) -> None:
     )
 
 
+@pytest.mark.parametrize("size", NAMED_PAGE_SIZES)
+def test_page_setup_accepts_every_named_size(size: PdfStructuredTextPageSize) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    payload = _dump_payload(
+        ConvertPlainTextToPdfPayload.model_validate(
+            {"files": source, "page_setup": {"size": size}}
+        )
+    )
+    assert payload["structured_text_options"]["page_setup"] == {"size": size}
+
+
+def test_page_setup_rejects_unknown_named_size() -> None:
+    source = _make_format_file(".txt", "text/plain")
+    with pytest.raises(ValidationError, match=r"page_setup\.size"):
+        ConvertPlainTextToPdfPayload.model_validate(
+            {"files": source, "page_setup": {"size": "Executive"}}
+        )
+
+
+def test_page_setup_accepts_custom_dimensions_instead_of_size_string() -> None:
+    source = _make_format_file(".txt", "text/plain")
+    payload = _dump_payload(
+        ConvertPlainTextToPdfPayload.model_validate(
+            {"files": source, "page_setup": {"width": 500, "height": 700}}
+        )
+    )
+    assert payload["structured_text_options"]["page_setup"] == {
+        "width": 500.0,
+        "height": 700.0,
+    }
+
+
+@pytest.mark.parametrize("font", KNOWN_FONTS)
+def test_style_accepts_every_published_font_name(
+    font: PdfStructuredTextKnownFont,
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    payload = _dump_payload(
+        ConvertPlainTextToPdfPayload.model_validate(
+            {"files": source, "style": {"font": font}}
+        )
+    )
+    assert payload["structured_text_options"]["style"] == {"font": font}
+
+
+def test_style_accepts_open_font_names_in_all_font_fields() -> None:
+    source = _make_format_file(".txt", "text/plain")
+    other_font = "Noto Sans CJK JP"
+    payload = _dump_payload(
+        ConvertPlainTextToPdfPayload.model_validate(
+            {
+                "files": source,
+                "style": {
+                    "font": other_font,
+                    "heading_font": other_font,
+                    "code_font": other_font,
+                    "cjk_font": other_font,
+                    "fallback_fonts": ["arial", other_font],
+                },
+            }
+        )
+    )
+    assert payload["structured_text_options"]["style"] == {
+        "font": other_font,
+        "heading_font": other_font,
+        "code_font": other_font,
+        "cjk_font": other_font,
+        "fallback_fonts": ["arial", other_font],
+    }
+
+
+@pytest.mark.parametrize(
+    "style",
+    [
+        pytest.param({"font": ""}, id="body"),
+        pytest.param({"font": "  "}, id="body-whitespace"),
+        pytest.param({"heading_font": ""}, id="heading"),
+        pytest.param({"code_font": ""}, id="code"),
+        pytest.param({"cjk_font": ""}, id="cjk"),
+        pytest.param({"fallback_fonts": [""]}, id="fallback"),
+    ],
+)
+def test_style_rejects_empty_font_names(style: dict[str, Any]) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    with pytest.raises(ValidationError, match="at least 1 item"):
+        ConvertPlainTextToPdfPayload.model_validate({"files": source, "style": style})
+
+
 @pytest.mark.parametrize("presentation", ["source", "hierarchy"])
 @pytest.mark.parametrize(
     ("payload_model", "extension", "mime_type"),
@@ -726,6 +835,94 @@ def test_convert_plain_text_to_pdf_success(monkeypatch: pytest.MonkeyPatch) -> N
     assert response.output_file.type == "application/pdf"
 
 
+@pytest.mark.parametrize("size", NAMED_PAGE_SIZES)
+def test_convert_plain_text_to_pdf_accepts_every_named_size(
+    monkeypatch: pytest.MonkeyPatch, size: PdfStructuredTextPageSize
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    expected_payload = {
+        "id": str(source.id),
+        "structured_text_options": {"page_setup": {"size": size}},
+    }
+    response = _sync_conversion(
+        monkeypatch,
+        source,
+        expected_payload,
+        lambda client: client.convert_plain_text_to_pdf(
+            source, page_setup={"size": size}
+        ),
+    )
+    assert response.output_file.type == "application/pdf"
+
+
+@pytest.mark.parametrize(
+    "font", [*KNOWN_FONTS, pytest.param("Noto Sans CJK JP", id="installed-name")]
+)
+def test_convert_plain_text_to_pdf_accepts_known_or_open_font_name(
+    monkeypatch: pytest.MonkeyPatch, font: PdfStructuredTextFontName
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    expected_payload = {
+        "id": str(source.id),
+        "structured_text_options": {"style": {"font": font}},
+    }
+    response = _sync_conversion(
+        monkeypatch,
+        source,
+        expected_payload,
+        lambda client: client.convert_plain_text_to_pdf(source, style={"font": font}),
+    )
+    assert response.output_file.type == "application/pdf"
+
+
+def test_convert_plain_text_to_pdf_serializes_all_font_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    style = PdfStructuredTextStyle(
+        font="arial",
+        heading_font="Arial Bold",
+        code_font="courier",
+        cjk_font="Noto Sans CJK JP",
+        fallback_fonts=["arial", "Noto Sans"],
+    )
+    expected_payload = {
+        "id": str(source.id),
+        "structured_text_options": {"style": style},
+    }
+    response = _sync_conversion(
+        monkeypatch,
+        source,
+        expected_payload,
+        lambda client: client.convert_plain_text_to_pdf(source, style=style),
+    )
+    assert response.output_file.type == "application/pdf"
+
+
+def test_convert_plain_text_to_pdf_rejects_unknown_size_before_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    source = _make_format_file(".txt", "text/plain")
+
+    def fail_transport(request: httpx.Request) -> httpx.Response:
+        msg = f"Unexpected request {request.method} {request.url}"
+        raise AssertionError(msg)
+
+    with (
+        PdfRestClient(
+            api_key=VALID_API_KEY, transport=httpx.MockTransport(fail_transport)
+        ) as client,
+        pytest.raises(ValidationError, match=r"page_setup\.size"),
+    ):
+        client.convert_plain_text_to_pdf(
+            source,
+            page_setup=cast(
+                PdfStructuredTextPageSetup, cast(object, {"size": "Executive"})
+            ),
+        )
+
+
 def test_convert_json_to_pdf_success(monkeypatch: pytest.MonkeyPatch) -> None:
     source = _make_format_file(".json", "application/json")
     payload = _dump_payload(
@@ -818,6 +1015,96 @@ async def test_async_convert_plain_text_to_pdf_success(
         ),
     )
     assert response.output_file.type == "application/pdf"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("size", NAMED_PAGE_SIZES)
+async def test_async_convert_plain_text_to_pdf_accepts_every_named_size(
+    monkeypatch: pytest.MonkeyPatch, size: PdfStructuredTextPageSize
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    expected_payload = {
+        "id": str(source.id),
+        "structured_text_options": {"page_setup": {"size": size}},
+    }
+    response = await _async_conversion(
+        monkeypatch,
+        source,
+        expected_payload,
+        lambda client: client.convert_plain_text_to_pdf(
+            source, page_setup={"size": size}
+        ),
+    )
+    assert response.output_file.type == "application/pdf"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "font", [*KNOWN_FONTS, pytest.param("Noto Sans CJK JP", id="installed-name")]
+)
+async def test_async_convert_plain_text_to_pdf_accepts_known_or_open_font_name(
+    monkeypatch: pytest.MonkeyPatch, font: PdfStructuredTextFontName
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    expected_payload = {
+        "id": str(source.id),
+        "structured_text_options": {"style": {"font": font}},
+    }
+    response = await _async_conversion(
+        monkeypatch,
+        source,
+        expected_payload,
+        lambda client: client.convert_plain_text_to_pdf(source, style={"font": font}),
+    )
+    assert response.output_file.type == "application/pdf"
+
+
+@pytest.mark.asyncio
+async def test_async_convert_plain_text_to_pdf_serializes_all_font_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    style = PdfStructuredTextStyle(
+        font="arial",
+        heading_font="Arial Bold",
+        code_font="courier",
+        cjk_font="Noto Sans CJK JP",
+        fallback_fonts=["arial", "Noto Sans"],
+    )
+    expected_payload = {
+        "id": str(source.id),
+        "structured_text_options": {"style": style},
+    }
+    response = await _async_conversion(
+        monkeypatch,
+        source,
+        expected_payload,
+        lambda client: client.convert_plain_text_to_pdf(source, style=style),
+    )
+    assert response.output_file.type == "application/pdf"
+
+
+@pytest.mark.asyncio
+async def test_async_convert_plain_text_to_pdf_rejects_unknown_size_before_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    source = _make_format_file(".txt", "text/plain")
+
+    def fail_transport(request: httpx.Request) -> httpx.Response:
+        msg = f"Unexpected request {request.method} {request.url}"
+        raise AssertionError(msg)
+
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=httpx.MockTransport(fail_transport)
+    ) as client:
+        with pytest.raises(ValidationError, match=r"page_setup\.size"):
+            await client.convert_plain_text_to_pdf(
+                source,
+                page_setup=cast(
+                    PdfStructuredTextPageSetup, cast(object, {"size": "Executive"})
+                ),
+            )
 
 
 @pytest.mark.asyncio

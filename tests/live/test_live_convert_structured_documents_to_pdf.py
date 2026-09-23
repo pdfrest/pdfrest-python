@@ -9,13 +9,25 @@ from pdfrest.models import PdfRestFile, PdfRestFileBasedResponse
 from pdfrest.types import (
     PdfStructuredTextCsvColumn,
     PdfStructuredTextDataPresentation,
+    PdfStructuredTextFontName,
     PdfStructuredTextLineHandling,
     PdfStructuredTextMissingImageAltText,
     PdfStructuredTextPageOrientation,
+    PdfStructuredTextPageSize,
     PdfStructuredTextTextAlignment,
 )
 
 from ..resources import get_test_resource_path
+
+NAMED_PAGE_SIZES = [
+    pytest.param("Letter", id="letter"),
+    pytest.param("Legal", id="legal"),
+    pytest.param("Ledger", id="ledger"),
+    pytest.param("A3", id="a3"),
+    pytest.param("A4", id="a4"),
+    pytest.param("A5", id="a5"),
+    pytest.param("Tabloid", id="tabloid"),
+]
 
 
 @pytest.fixture(scope="module")
@@ -142,6 +154,73 @@ def test_live_convert_plain_text_to_pdf_page_orientation(
     _assert_structured_pdf(
         response, source, f"live-plain-text-orientation-{orientation}"
     )
+
+
+@pytest.mark.parametrize("size", NAMED_PAGE_SIZES)
+def test_live_convert_plain_text_to_pdf_page_size(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    size: PdfStructuredTextPageSize,
+) -> None:
+    source = uploaded_structured_documents["plain_text"]
+    response = _run_sync(
+        pdfrest_api_key,
+        pdfrest_live_base_url,
+        lambda client: client.convert_plain_text_to_pdf(
+            source,
+            page_setup={"size": size},
+            output=f"live-plain-text-page-size-{size.lower()}",
+        ),
+    )
+    _assert_structured_pdf(
+        response, source, f"live-plain-text-page-size-{size.lower()}"
+    )
+
+
+def test_live_convert_plain_text_to_pdf_rejects_invalid_page_size(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+) -> None:
+    source = uploaded_structured_documents["plain_text"]
+    with (
+        PdfRestClient(
+            api_key=pdfrest_api_key,
+            base_url=pdfrest_live_base_url,
+        ) as client,
+        pytest.raises(PdfRestApiError, match=r"(?i)page.?setup|size|invalid"),
+    ):
+        client.convert_plain_text_to_pdf(
+            source,
+            extra_body={
+                "structured_text_options": {"page_setup": {"size": "Executive"}}
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    "font",
+    [
+        pytest.param("arial", id="published-token"),
+        pytest.param("Noto Sans", id="installed-unlisted-name"),
+    ],
+)
+def test_live_convert_plain_text_to_pdf_font_name(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    font: PdfStructuredTextFontName,
+) -> None:
+    source = uploaded_structured_documents["plain_text"]
+    response = _run_sync(
+        pdfrest_api_key,
+        pdfrest_live_base_url,
+        lambda client: client.convert_plain_text_to_pdf(
+            source, style={"font": font}, output="live-plain-text-font"
+        ),
+    )
+    _assert_structured_pdf(response, source, "live-plain-text-font")
 
 
 @pytest.mark.parametrize("data_presentation", ["source", "hierarchy"])
@@ -278,6 +357,74 @@ async def test_live_async_convert_plain_text_to_pdf_page_orientation(
     _assert_structured_pdf(
         response, source, f"live-plain-text-async-orientation-{orientation}"
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("size", NAMED_PAGE_SIZES)
+async def test_live_async_convert_plain_text_to_pdf_page_size(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    size: PdfStructuredTextPageSize,
+) -> None:
+    source = uploaded_structured_documents["plain_text"]
+    response = await _run_async(
+        pdfrest_api_key,
+        pdfrest_live_base_url,
+        lambda client: client.convert_plain_text_to_pdf(
+            source,
+            page_setup={"size": size},
+            output=f"live-plain-text-async-page-size-{size.lower()}",
+        ),
+    )
+    _assert_structured_pdf(
+        response, source, f"live-plain-text-async-page-size-{size.lower()}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_live_async_convert_plain_text_to_pdf_rejects_invalid_page_size(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+) -> None:
+    source = uploaded_structured_documents["plain_text"]
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        with pytest.raises(PdfRestApiError, match=r"(?i)page.?setup|size|invalid"):
+            await client.convert_plain_text_to_pdf(
+                source,
+                extra_body={
+                    "structured_text_options": {"page_setup": {"size": "Executive"}}
+                },
+            )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "font",
+    [
+        pytest.param("arial", id="published-token"),
+        pytest.param("Noto Sans", id="installed-unlisted-name"),
+    ],
+)
+async def test_live_async_convert_plain_text_to_pdf_font_name(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    font: PdfStructuredTextFontName,
+) -> None:
+    source = uploaded_structured_documents["plain_text"]
+    response = await _run_async(
+        pdfrest_api_key,
+        pdfrest_live_base_url,
+        lambda client: client.convert_plain_text_to_pdf(
+            source, style={"font": font}, output="live-plain-text-async-font"
+        ),
+    )
+    _assert_structured_pdf(response, source, "live-plain-text-async-font")
 
 
 @pytest.mark.asyncio
