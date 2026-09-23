@@ -14,15 +14,20 @@ an existing helper, such as an added server parameter.
 - Require the PDFCloud-API checkout. Locate it relative to this checkout; do not
   assume a user-specific path.
 - Read this repository's `AGENTS.md` and `TESTING_GUIDELINES.md`, then read
-  `PDFCloud-API/docs/openapi/openapi-spec.yaml` before editing.
-- Treat the OpenAPI operation, schemas, media types, documented errors, and
-  async/polling behavior as the public contract. Inspect API source only to
+  `PDFCloud-API/docs/openapi/cloud/openapi-spec.yaml` before editing. Search
+  this Cloud specification for the requested tool and operation first.
+- Only when a requested new tool is absent from the Cloud specification, use
+  `PDFCloud-API/docs/openapi/container/openapi-spec.yaml` as the fallback
+  contract for that tool. Do not combine Cloud and Container behavior for an
+  operation present in the Cloud specification.
+- Treat the selected OpenAPI operation, schemas, media types, documented errors,
+  and async/polling behavior as the public contract. Inspect API source only to
   clarify behavior absent from, or apparently inconsistent with, that contract.
 - Do not edit PDFCloud-API unless the user explicitly requests an API-contract
   change.
-- Stop and ask the user for direction if the checkout or documented operation is
-  missing, a required fixture cannot be obtained, or a compatible SDK adaptation
-  cannot be made.
+- Stop and ask the user for direction if the checkout is missing, the requested
+  operation is absent from the applicable specification(s), a required fixture
+  cannot be obtained, or a compatible SDK adaptation cannot be made.
 
 ## Jira branch setup
 
