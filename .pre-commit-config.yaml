@@ -72,6 +72,7 @@ repos:
     rev: v0.24.3
     hooks:
       - id: toml-sort-fix
+        exclude: ^uv\.lock$
   - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
     rev: 0.8.24
