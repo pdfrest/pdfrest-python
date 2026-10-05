@@ -1,0 +1,4 @@
+interface:
+  display_name: "pdfRest Client API"
+  short_description: "Add or evolve typed pdfRest client API helpers."
+  default_prompt: "Use $pdfrest-client-api to add or modify a forward-compatible API helper on PdfRestClient and AsyncPdfRestClient, using PDFCloud-API as the contract source and complete unit/live coverage."

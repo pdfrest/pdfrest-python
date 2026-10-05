@@ -22,6 +22,26 @@ uv run pre-commit install
 uv run python -c "import pdfrest; print(pdfrest.__version__)"
 ```
 
+## Adding or evolving a client API
+
+When asking Codex to add a documented pdfRest endpoint or a compatible parameter
+to an existing endpoint, begin the prompt with the repository-local
+`$pdfrest-client-api` skill. Include the Jira work item key when one exists. The
+PDFCloud-API checkout and its documented OpenAPI operation must be available
+before using the skill. Prefer adding the neighboring PDFCloud-API directory to
+the Codex project so the skill can read the contract directly. For example:
+
+```text
+$pdfrest-client-api PDFCLOUD-6233: Add the documented PDFCloud-API operation
+for ...
+```
+
+The skill uses the PDFCloud-API OpenAPI specification as the contract; keeps the
+sync and async clients aligned; puts wire serialization and validation in
+Pydantic payload models; preserves existing caller behavior; and requires
+focused unit coverage plus matching live endpoint tests. It also handles the
+versioning required for a newly added public API.
+
 ## Code quality checks
 
 Run these before opening a PR:

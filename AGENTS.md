@@ -20,6 +20,8 @@
   pushing.
 - `uv run pytest` — execute the suite with the active interpreter.
 - `uv build` — produce wheels and sdists identical to the release workflow.
+- `uv version --bump <major|minor|patch>` — update the project version; use this
+  command instead of editing the version manually in `pyproject.toml`.
 - `uvx nox -s tests` — create matrix virtualenvs via nox and execute the pytest
   session.
 - `nox` executes pytest sessions with built-in parallelism; when invoking pytest
@@ -79,6 +81,23 @@
   payload models (`model_validate`). Avoid duplicating payload validation in
   client methods or raising configuration errors for payload-shape issues that
   Pydantic validators can enforce.
+- Decide public helper granularity from an applicability matrix, not from the
+  number of HTTP routes. List each user-recognizable source/workflow variant
+  against its accepted MIME types/extensions, required inputs, optional fields,
+  output shape, and validation rules; classify every option as universal,
+  subset-only, or variant-exclusive.
+- Split one server operation into focused helpers when the source/workflow is
+  known before the call and a combined signature would expose options that are
+  invalid for some variants, require mode-dependent runtime checks, or weaken
+  editor/type-checker guidance. Distinct file-family validation or a meaningful
+  cluster of variant-only options is strong evidence for a split; a shared path
+  or wire object is not evidence for one public helper.
+- Keep one helper when the variants share one coherent input contract and
+  outcome, or when a natural discriminated public input can make every valid
+  combination statically explicit without a kitchen-sink keyword signature. When
+  helpers are split, keep universal keywords consistent, share internal
+  base/nested payload models, and give each helper its own narrow payload model
+  that rejects other variants before transport execution.
 - Prefer Pydantic-backed JSON serialization for performance: use
   `model_dump_json()` for Pydantic models, and use `pydantic_core.to_json()` for
   non-model payloads instead of `json.dumps()` where practical.
@@ -124,6 +143,12 @@
   import them from `pdfrest.types` (e.g., `PdfInfoQuery`) instead of reaching
   into underscored modules. Treat that package as the public surface for shared
   type contracts consumed by both clients and tests.
+- Document every public text `Literal` alias with a PEP 258 docstring
+  immediately after its `TypeAlias` assignment. State what the option controls,
+  then use an `Accepted values:` list with one Markdown bullet per literal
+  spelling and its user-visible meaning. Derive meanings from the OpenAPI
+  contract or observed server behavior; do not leave callers to infer semantics
+  from the strings.
 - Payload models that reference uploaded resources should accept
   `list[PdfRestFile]` with explicit length bounds and serialize IDs for the
   allowed cardinality (`serialization_alias="id"` plus a serializer that emits
@@ -168,6 +193,12 @@
   remain the default approach. Add custom validators only when they provide
   behavior native constraints cannot (for example, parsing alternate wire
   formats or enforcing cross-field dependencies).
+- When pdfRest exposes separate RGB/CMYK wire fields for one semantic color,
+  expose one public `<name>_color: PdfColor` input instead of separate
+  `<name>_color_rgb`/`<name>_color_cmyk` inputs. Use a channel-count
+  `BeforeValidator` with shared `validation_alias` and distinct serialization
+  aliases to route three channels to RGB and four to CMYK; keep those wire-field
+  names internal to the payload model.
 - Keep `BeforeValidator`/`AfterValidator` helpers and field serializers short
   and shape-focused. They should primarily adapt nonconforming inputs or handle
   pdfRest wire quirks (for example, splitting comma-separated values or
@@ -229,6 +260,15 @@
   assertion through `PdfRestClient` and `AsyncPdfRestClient` so sync/async
   behaviour stays independently verifiable.
 
+- For endpoints that accept discriminated JSON objects, test every discriminator
+  through both client transports and assert the model's exact JSON-ready
+  serialization directly. Parameterize each constrained field at its accepted
+  boundaries and immediately outside them; test MIME and single-resource
+  cardinality failures through both transports with a transport that fails if
+  local validation does not short-circuit. When a helper accepts `timeout`,
+  capture `request.extensions["timeout"]` in both customization tests and assert
+  every timeout component.
+
 - When endpoints may raise `PdfRestErrorGroup` (or any future pdfRest-specific
   exception groups), assert them with `pytest.RaisesGroup`/`pytest.RaisesExc`,
   and use the `check=` hook to confirm the outer group is the expected class so
@@ -287,6 +327,16 @@
   invalid values (e.g., bogus literals or mixed lists) alongside boundary
   failures so the server-side error messaging is exercised.
 
+- Treat a public `Literal` as an enumerated contract, not as representative
+  option coverage. Parameterize every accepted spelling with readable
+  `pytest.param(..., id=...)` cases in the focused payload and client tests. For
+  a helper exposed by both clients, distinct sync and async test functions must
+  send every value; matching live tests must also exercise every value through
+  both transports. Include a server-rejected invalid spelling through
+  `extra_body` when local validation would otherwise prevent that request. The
+  `pr-review-auditor` checks the declared literal values against these cases, so
+  a single happy-path value is insufficient.
+
 - Provide live integration tests under `tests/live/` (with an `__init__.py` so
   pytest discovers the package) that introspect payload models to enumerate
   valid/invalid literal values and numeric boundaries. These tests should vary a
@@ -309,10 +359,82 @@
   to `.env`) in temporary scripts to drive the in-flight client against live
   endpoints and capture responses for test data and assertions.
 
+## Example Guidelines
+
+- Every new public endpoint/helper must include a runnable example under
+  `examples/`. Group examples by capability in an endpoint-oriented directory
+  such as `examples/extract_text/`, and use a descriptive `*_example.py`
+  filename. Add the script to the inventory in `examples/README.md` and update
+  relevant docs links or usage guidance when the new capability changes
+  discoverability.
+
+- Make each example a standalone uv script. Its first lines must be a PEP 723
+  metadata block in the single-line form understood by the Nox example discovery
+  code:
+
+  ```python
+  # /// script
+  # requires-python = ">=3.10"
+  # dependencies = ["pdfrest", "python-dotenv"]
+  # ///
+  ```
+
+  Set `requires-python` to the widest supported range the example actually
+  supports and list every third-party import in `dependencies`. Keep the block
+  first (do not put a shebang above it), because `noxfile.py` reads metadata
+  starting at line one. PEP 723 metadata gives `uv run` an isolated environment;
+  do not rely on undeclared project or development dependencies.
+
+- Follow the metadata with a module docstring that states the user outcome,
+  lists the important upload/API/output steps, and gives the exact command to
+  run from the repository root, for example
+  `uv run examples/extract_text/extract_pdf_text_example.py`. Name required
+  environment variables, input files, and any expected setup in that docstring.
+
+- Prefer deterministic, redistributable inputs under `examples/resources/` and
+  resolve them relative to `Path(__file__)`, never the caller's working
+  directory. Reuse a suitable checked-in resource when possible. Before adding a
+  new binary or specialized input, confirm its provenance, redistribution
+  suitability, and expected API behavior; ask the contributor for the required
+  asset when those cannot be established.
+
+- Examples exercise the real service, load `PDFREST_API_KEY` from the
+  environment (optionally through `python-dotenv`), upload local inputs through
+  `client.files.create_from_paths`, and use client context managers. Keep the
+  flow short and instructional while printing enough typed response data for a
+  user and CI to confirm success.
+
+- When a public `TypedDict` represents a structured API input, construct it in
+  examples with its keyword constructor, such as `PdfAddLineObject(...)`,
+  instead of an anonymous dictionary literal. Annotate heterogeneous collections
+  with the public union alias, such as `list[PdfAddShapeObject]`, so readers and
+  type checkers can see the supported contract. Use dictionary literals when
+  demonstrating dynamic data, intentionally invalid input, or raw wire-format
+  overrides.
+
+- Put interpreter-specific alternatives beside the base script as
+  `python-X.Y/<same_name>.py`, with a local `ruff.toml` extending the parent
+  configuration, only when syntax or compatibility requires a distinct script.
+  The base script remains the default for newer supported interpreters.
+
+- Validate a new or changed example directly with `uv run <script>` when the
+  published SDK contains the demonstrated API. During development, validate
+  against the local checkout with
+  `uvx nox -s run-example -- examples/<capability>/<script>.py`; run
+  `uvx nox -s examples` for the Python 3.10-3.14 matrix when practical. The CI
+  `examples` job runs every discovered script against the live service on each
+  supported interpreter and gates publishing, so examples must be safe to run
+  repeatedly and must not depend on third-party network resources.
+
 ## Commit & Pull Request Guidelines
 
 - Follow the `area: summary` convention seen in `pdfassistant-chatbot` (e.g.,
   `client: Add document merge service`).
+- Name the commit scope after the primary file, directory, or domain object
+  affected by the change, such as `AGENTS`, `pdfrest-client-api`, `client`,
+  `models`, `tests`, `examples`, `docs`, or `pyproject`. Do not use generic
+  category or intent labels such as `guidance`, `changes`, `maintenance`, or
+  `misc`.
 - Keep commit messages imperative and focused; squash fixups before opening a
   PR.
 - Reference related issues or tickets in the PR description, and highlight
