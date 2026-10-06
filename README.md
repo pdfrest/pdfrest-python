@@ -140,3 +140,12 @@ asyncio.run(main())
 ## For contributors
 
 Contributor workflows live in `CONTRIBUTING.md`.
+
+Check tracked filenames for UTF-8 NFC normalization and collisions:
+
+```bash
+uv run --script scripts/check_nfc_filenames.py
+```
+
+This read-only check also runs through pre-commit. It requires Python 3.11 or
+newer and reports offending filenames without renaming them.

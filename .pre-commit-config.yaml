@@ -17,8 +17,14 @@ repos:
         exclude: ^(tests/resources/|examples/resources/)(?!.*\.pyi?$)
       - id: end-of-file-fixer
         exclude: ^(tests/resources/|examples/resources/)(?!.*\.pyi?$)
+      - id: check-json
       - id: check-toml
       - id: check-yaml
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: detect-private-key
+        # Public test fixture for the self-signed pdfrest-test certificate.
+        exclude: ^tests/resources/signing_key\.pem$
       - id: check-added-large-files
         args: [--maxkb=4000]
   - repo: https://github.com/JoC0de/pre-commit-prettier
@@ -30,6 +36,10 @@ repos:
     rev: 0.34.0
     hooks:
       - id: check-github-workflows
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
   - repo: https://github.com/editorconfig-checker/editorconfig-checker.python
     rev: 3.4.0
     hooks:
@@ -82,6 +92,14 @@ repos:
     rev: 0.8.24
     hooks:
       - id: uv-lock
+  - repo: local
+    hooks:
+      - id: check-nfc-filenames
+        name: Check tracked filename NFC normalization
+        entry: uv run --script scripts/check_nfc_filenames.py
+        language: system
+        pass_filenames: false
+        always_run: true
   - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
     rev: 1.34.0 # or whatever the latest version is at the time
     hooks:
