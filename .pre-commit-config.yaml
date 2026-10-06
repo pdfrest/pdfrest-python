@@ -13,7 +13,10 @@ repos:
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+        # Preserve uploaded service inputs; maintained Python stays in scope.
+        exclude: ^(tests/resources/|examples/resources/)(?!.*\.pyi?$)
       - id: end-of-file-fixer
+        exclude: ^(tests/resources/|examples/resources/)(?!.*\.pyi?$)
       - id: check-toml
       - id: check-yaml
       - id: check-added-large-files
@@ -22,7 +25,7 @@ repos:
     rev: v3.6.2
     hooks:
       - id: prettier
-        exclude: .md$
+        exclude: (\.md$|^(tests/resources/|examples/resources/)(?!.*\.pyi?$))
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.34.0
     hooks:
@@ -31,12 +34,13 @@ repos:
     rev: 3.4.0
     hooks:
       - id: editorconfig-checker
+        exclude: ^(tests/resources/|examples/resources/)(?!.*\.pyi?$)
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.22
     hooks:
       - id: mdformat
         name: mdformat on non-.github files
-        exclude: ^(.github/|docs/)
+        exclude: ^(\.github/|docs/|tests/resources/|examples/resources/)
         args: ["--wrap", "80", "--number"]
         additional_dependencies:
           - mdformat-gfm
