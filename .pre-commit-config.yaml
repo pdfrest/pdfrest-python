@@ -100,7 +100,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-  - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
-    rev: 1.34.0 # or whatever the latest version is at the time
-    hooks:
       - id: basedpyright
+        name: basedpyright
+        entry: uv run --frozen basedpyright
+        language: system
+        pass_filenames: false
+        always_run: true
