@@ -8,9 +8,15 @@ import pytest
 from pydantic import ValidationError
 
 from pdfrest import AsyncPdfRestClient, PdfRestClient
-from pdfrest.models import PdfRestFileBasedResponse, PdfRestFileID
+from pdfrest.models import PdfRestFile, PdfRestFileBasedResponse, PdfRestFileID
 from pdfrest.models._internal import PdfAddShapesPayload
 
+from .add_shapes_test_helpers import (
+    INVALID_SHAPE_CASES,
+    VALID_SHAPE_CASES,
+    ShapeBoundaryCase,
+    server_shape,
+)
 from .graphics_test_helpers import (
     ASYNC_API_KEY,
     VALID_API_KEY,
@@ -547,3 +553,125 @@ def test_add_shapes_payload_accepts_boundary_values(shape: dict[str, object]) ->
     )
 
     assert payload.shape_objects[0].model_dump(mode="json", exclude_none=True)
+
+
+def shape_contract_transport(
+    shape: dict[str, object],
+) -> tuple[httpx.MockTransport, PdfRestFile]:
+    """Assert the request independently of the payload model being exercised."""
+    pdf_file = make_pdf_file(PdfRestFileID.generate(1))
+    output_id = str(PdfRestFileID.generate())
+    expected_body = {
+        "id": str(pdf_file.id),
+        "shape_objects": [server_shape(shape)],
+        "tag_enabled": "tag_structure_type" in shape,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path == "/pdf-with-added-shapes":
+            assert json.loads(request.content) == expected_body
+            return httpx.Response(
+                200, json={"inputId": [pdf_file.id], "outputId": [output_id]}
+            )
+        assert request.method == "GET"
+        assert request.url.path == f"/resource/{output_id}"
+        return httpx.Response(
+            200,
+            json=build_file_info_payload(output_id, "shapes.pdf", "application/pdf"),
+        )
+
+    return httpx.MockTransport(handler), pdf_file
+
+
+@pytest.mark.parametrize("case", VALID_SHAPE_CASES)
+def test_add_shapes_payload_contract(case: ShapeBoundaryCase) -> None:
+    pdf_file = make_pdf_file(PdfRestFileID.generate(1))
+    body = PdfAddShapesPayload.model_validate(
+        {
+            "files": pdf_file,
+            "shape_objects": case.shape,
+            "tag_enabled": "tag_structure_type" in case.shape,
+        }
+    ).model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
+    assert body == {
+        "id": str(pdf_file.id),
+        "shape_objects": [server_shape(case.shape)],
+        "tag_enabled": "tag_structure_type" in case.shape,
+    }
+
+
+@pytest.mark.parametrize("case", VALID_SHAPE_CASES)
+def test_add_shapes_to_pdf_contract(case: ShapeBoundaryCase) -> None:
+    transport, pdf_file = shape_contract_transport(case.shape)
+    with PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client:
+        response = client.add_shapes_to_pdf(
+            pdf_file,
+            shape_objects=case.shape,
+            tag_enabled="tag_structure_type" in case.shape,
+        )
+    assert response.input_id == pdf_file.id
+    assert response.output_file.name == "shapes.pdf"
+    assert response.output_file.type == "application/pdf"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", VALID_SHAPE_CASES)
+async def test_async_add_shapes_to_pdf_contract(case: ShapeBoundaryCase) -> None:
+    transport, pdf_file = shape_contract_transport(case.shape)
+    async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
+        response = await client.add_shapes_to_pdf(
+            pdf_file,
+            shape_objects=case.shape,
+            tag_enabled="tag_structure_type" in case.shape,
+        )
+    assert response.input_id == pdf_file.id
+    assert response.output_file.name == "shapes.pdf"
+    assert response.output_file.type == "application/pdf"
+
+
+@pytest.mark.parametrize("case", INVALID_SHAPE_CASES)
+def test_add_shapes_payload_invalid_contract(case: ShapeBoundaryCase) -> None:
+    with pytest.raises(ValidationError, match=case.local_match):
+        PdfAddShapesPayload.model_validate(
+            {
+                "files": make_pdf_file(PdfRestFileID.generate(1)),
+                "shape_objects": case.shape,
+                "tag_enabled": True,
+            }
+        )
+
+
+def unexpected_shape_request(_: httpx.Request) -> httpx.Response:
+    pytest.fail("Invalid shape must be rejected before transport execution.")
+
+
+@pytest.mark.parametrize("case", INVALID_SHAPE_CASES)
+def test_add_shapes_to_pdf_invalid_contract(case: ShapeBoundaryCase) -> None:
+    with (
+        PdfRestClient(
+            api_key=VALID_API_KEY,
+            transport=httpx.MockTransport(unexpected_shape_request),
+        ) as client,
+        pytest.raises(ValidationError, match=case.local_match),
+    ):
+        client.add_shapes_to_pdf(
+            make_pdf_file(PdfRestFileID.generate(1)),
+            shape_objects=case.shape,
+            tag_enabled=True,
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", INVALID_SHAPE_CASES)
+async def test_async_add_shapes_to_pdf_invalid_contract(
+    case: ShapeBoundaryCase,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=httpx.MockTransport(unexpected_shape_request)
+    ) as client:
+        with pytest.raises(ValidationError, match=case.local_match):
+            await client.add_shapes_to_pdf(
+                make_pdf_file(PdfRestFileID.generate(1)),
+                shape_objects=case.shape,
+                tag_enabled=True,
+            )

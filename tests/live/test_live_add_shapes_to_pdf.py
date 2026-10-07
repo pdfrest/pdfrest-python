@@ -5,6 +5,12 @@ import pytest
 from pdfrest import AsyncPdfRestClient, PdfRestApiError, PdfRestClient
 from pdfrest.models import PdfRestFile
 
+from ..add_shapes_test_helpers import (
+    INVALID_SHAPE_CASES,
+    VALID_SHAPE_CASES,
+    ShapeBoundaryCase,
+    server_shape,
+)
 from ..resources import get_test_resource_path
 
 
@@ -13,11 +19,14 @@ def uploaded_pdf_for_shape_addition(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
 ) -> PdfRestFile:
+    """Use multiple pages so the first page above the lower bound is valid."""
     with PdfRestClient(
         api_key=pdfrest_api_key,
         base_url=pdfrest_live_base_url,
     ) as client:
-        return client.files.create_from_paths([get_test_resource_path("report.pdf")])[0]
+        return client.files.create_from_paths([get_test_resource_path("20-pages.pdf")])[
+            0
+        ]
 
 
 def _line() -> dict[str, object]:
@@ -160,4 +169,96 @@ async def test_live_async_add_shapes_to_pdf_invalid_page(
                         }
                     ]
                 },
+            )
+
+
+@pytest.mark.parametrize("case", VALID_SHAPE_CASES)
+def test_live_add_shapes_to_pdf_contract(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_shape_addition: PdfRestFile,
+    case: ShapeBoundaryCase,
+) -> None:
+    with PdfRestClient(
+        api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+    ) as client:
+        response = client.add_shapes_to_pdf(
+            uploaded_pdf_for_shape_addition,
+            shape_objects=case.shape,
+            tag_enabled="tag_structure_type" in case.shape,
+            output="live-shape-contract",
+        )
+    assert len(response.output_files) == 1
+    assert response.output_file.type == "application/pdf"
+    assert response.output_file.name.startswith("live-shape-contract")
+    assert response.output_file.size > 0
+    assert response.output_file.url
+    assert response.warning is None
+    assert uploaded_pdf_for_shape_addition.id in response.input_ids
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", VALID_SHAPE_CASES)
+async def test_live_async_add_shapes_to_pdf_contract(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_shape_addition: PdfRestFile,
+    case: ShapeBoundaryCase,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+    ) as client:
+        response = await client.add_shapes_to_pdf(
+            uploaded_pdf_for_shape_addition,
+            shape_objects=case.shape,
+            tag_enabled="tag_structure_type" in case.shape,
+            output="live-shape-contract",
+        )
+    assert len(response.output_files) == 1
+    assert response.output_file.type == "application/pdf"
+    assert response.output_file.name.startswith("live-shape-contract")
+    assert response.output_file.size > 0
+    assert response.output_file.url
+    assert response.warning is None
+    assert uploaded_pdf_for_shape_addition.id in response.input_ids
+
+
+@pytest.mark.parametrize("case", INVALID_SHAPE_CASES)
+def test_live_add_shapes_to_pdf_invalid_contract(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_shape_addition: PdfRestFile,
+    case: ShapeBoundaryCase,
+) -> None:
+    with (
+        PdfRestClient(
+            api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+        ) as client,
+        pytest.raises(PdfRestApiError, match=case.server_match),
+    ):
+        client.add_shapes_to_pdf(
+            uploaded_pdf_for_shape_addition,
+            shape_objects=_line(),
+            tag_enabled=True,
+            extra_body={"shape_objects": [server_shape(case.shape)]},
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", INVALID_SHAPE_CASES)
+async def test_live_async_add_shapes_to_pdf_invalid_contract(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_shape_addition: PdfRestFile,
+    case: ShapeBoundaryCase,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+    ) as client:
+        with pytest.raises(PdfRestApiError, match=case.server_match):
+            await client.add_shapes_to_pdf(
+                uploaded_pdf_for_shape_addition,
+                shape_objects=_line(),
+                tag_enabled=True,
+                extra_body={"shape_objects": [server_shape(case.shape)]},
             )
