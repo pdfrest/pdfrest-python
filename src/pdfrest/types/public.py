@@ -143,7 +143,7 @@ PdfRGBColor = tuple[int, int, int]
 PdfColor = PdfRGBColor | PdfCMYKColor
 PdfTextColor = PdfColor
 
-PdfContentStructureType = Literal[
+PdfContentStructureType: TypeAlias = Literal[
     "P",
     "H",
     "H1",
@@ -172,6 +172,42 @@ PdfContentStructureType = Literal[
     "Formula",
     "Form",
 ]
+"""Semantic PDF structure type assigned to newly added content.
+
+Shape tagging requires ``tag_enabled=True`` on the client method. These are
+the closed set accepted by the service, rather than arbitrary custom roles.
+Meanings follow the [standard PDF structure elements](https://pdfa.org/wp-content/uploads/2019/06/TaggedPDFBestPracticeGuideSyntax.pdf).
+
+Accepted values:
+
+- `P`: Paragraph.
+- `H`: Heading without an explicit level.
+- `H1`: Level-one heading.
+- `H2`: Level-two heading.
+- `H3`: Level-three heading.
+- `H4`: Level-four heading.
+- `H5`: Level-five heading.
+- `H6`: Level-six heading.
+- `Lbl`: Label, such as a list marker.
+- `Span`: Inline text segment.
+- `Quote`: Inline quotation.
+- `Note`: Explanatory note, such as a footnote.
+- `Reference`: Reference to other content.
+- `BibEntry`: Bibliographic entry.
+- `Code`: Computer code.
+- `Link`: Hypertext link.
+- `Annot`: Annotation content.
+- `Ruby`: Ruby annotation grouping base text and its reading aid.
+- `RB`: Ruby base text.
+- `RT`: Ruby annotation text.
+- `RP`: Ruby enclosing punctuation.
+- `Warichu`: Small inline annotation split across two lines.
+- `WT`: Warichu annotation text.
+- `WP`: Warichu enclosing punctuation.
+- `Figure`: Graphical content.
+- `Formula`: Mathematical expression.
+- `Form`: Form widget grouping.
+"""
 
 
 class PdfAddLineObject(TypedDict, total=False):
