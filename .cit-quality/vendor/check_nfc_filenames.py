@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 import subprocess
 import sys
 import unicodedata
@@ -16,17 +15,8 @@ from typing import Any
 
 def tracked_filename_report(root: Path) -> dict[str, Any]:
     """Inspect raw index paths, not filesystem names or quoted Git status text."""
-    git = shutil.which("git")
-    if git is None:
-        return {
-            "checked": False,
-            "error": "Git executable not found on PATH",
-            "issues": [],
-            "collisions": [],
-        }
     process = subprocess.run(
-        args=["git", "ls-files", "--cached", "-z"],
-        executable=git,
+        ["git", "ls-files", "--cached", "-z"],
         cwd=root,
         check=False,
         capture_output=True,

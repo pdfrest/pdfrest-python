@@ -2,12 +2,12 @@
 name = "pdfrest"
 version = "1.1.0"
 description = "Python client library for interacting with the pdfRest API"
-readme = {file = "README.md", content-type = "text/markdown"}
+readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
-    {name = "Datalogics"},
+    { name = "Datalogics" },
 ]
 maintainers = [
-    {name = "Datalogics"},
+    { name = "Datalogics" },
 ]
 keywords = [
     "api",
@@ -49,8 +49,8 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "pre-commit>=3.7.0",
-    "ruff>=0.6.9",
+    "pre-commit==4.6.2",
+    "ruff==0.16.8",
     "pytest>=8.3.3",
     "pytest-cov>=5.0.0",
     "pip-audit>=2.7.3",
@@ -79,10 +79,13 @@ markers = [
 ]
 
 [tool.ruff]
+extend-exclude = [".cit-quality/vendor"]
 extend-include = ["*.ipynb"]
 target-version = "py310"
 
 [tool.ruff.lint]
+# Keep the established Ruff defaults explicit across tool upgrades.
+select = ["E4", "E7", "E9", "F"]
 # Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
 # Rules cribbed from the PDM sources themselves.
 extend-select = [

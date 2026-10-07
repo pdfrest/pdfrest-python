@@ -134,3 +134,6 @@
 # Resource helpers are maintained Python, not immutable test data.
 /tests/resources/**/*.py text eol=lf
 /tests/resources/**/*.pyi text eol=lf
+
+# CIT quality tooling is vendored, not project source.
+/.cit-quality/vendor/** linguist-vendored
