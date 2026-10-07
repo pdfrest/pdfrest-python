@@ -84,8 +84,9 @@ repos:
         exclude: ^\.cit-quality/vendor/
         types_or: [python, pyi, jupyter]
       - id: ruff-format
-        exclude: ^\.cit-quality/vendor/
-        types_or: [python, pyi, jupyter]
+        # Format Python examples in Markdown while preserving service inputs.
+        exclude: (^\.cit-quality/vendor/|^(tests/resources/|examples/resources/)(?!.*\.pyi?$))
+        types_or: [python, pyi, jupyter, markdown]
   - repo: https://github.com/pappasam/toml-sort
     rev: v0.25.0
     hooks:
