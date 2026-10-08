@@ -1611,6 +1611,72 @@ INVALID_OPTION_BOUNDARIES.extend(
     for length in (2, 4)
 )
 
+COLLECTION_BOUNDARIES = [
+    (("table_style", "column_width_weights"), 1),
+    (("style", "fallback_fonts"), "Arial"),
+    (("columns",), {"index": 0}),
+]
+VALID_OPTION_BOUNDARIES.extend(
+    pytest.param(
+        _nested_option(path, [item] * length),
+        id=f"{'-'.join(path)}-{length}-items",
+    )
+    for path, item in COLLECTION_BOUNDARIES
+    for length in (1, 2)
+)
+INVALID_OPTION_BOUNDARIES.extend(
+    pytest.param(
+        _nested_option(path, []),
+        rf"(?s){path[-1]}.*at least 1 item",
+        id=f"{'-'.join(path)}-empty",
+    )
+    for path, _ in COLLECTION_BOUNDARIES
+)
+
+TEXT_BOUNDARIES = [
+    ("title",),
+    ("language",),
+    *[
+        ("style", field)
+        for field in ("font", "heading_font", "code_font", "cjk_font", "fallback_fonts")
+    ],
+    ("image_alt_text",),
+]
+
+
+def _text_options(path: tuple[str, ...], text: str) -> dict[str, Any]:
+    value: Any = text
+    if path[-1] == "fallback_fonts":
+        value = [text]
+    elif path[-1] == "image_alt_text":
+        value = {"logo": text}
+    return _nested_option(path, value)
+
+
+VALID_OPTION_BOUNDARIES.extend(
+    pytest.param(
+        _text_options(path, text), id=f"{'-'.join(path)}-{len(text)}-characters"
+    )
+    for path in TEXT_BOUNDARIES
+    for text in ("A", "AB")
+)
+VALID_OPTION_BOUNDARIES.extend(
+    pytest.param({"output": output}, id=f"output-{len(output)}-characters")
+    for output in ("A", "AB")
+)
+INVALID_OPTION_BOUNDARIES.extend(
+    pytest.param(
+        _text_options(path, text),
+        rf"(?s){path[-1]}.*at least 1 (?:character|item)",
+        id=f"{'-'.join(path)}-{'empty' if not text else 'whitespace'}",
+    )
+    for path in TEXT_BOUNDARIES
+    for text in (("",) if path[-1] == "image_alt_text" else ("", " \t "))
+)
+INVALID_OPTION_BOUNDARIES.append(
+    pytest.param({"output": ""}, r"(?s)output.*at least 1 character", id="output-empty")
+)
+
 
 def _boundary_source(
     options: dict[str, Any],
@@ -1631,11 +1697,15 @@ def _boundary_source(
 def _expected_boundary_payload(
     source: PdfRestFile, options: dict[str, Any]
 ) -> dict[str, Any]:
+    if "output" in options:
+        return {"id": str(source.id), "output": options["output"]}
     wire_options = dict(options)
     if "table_style" in wire_options:
         wire_options["style"] = {"table": wire_options.pop("table_style")}
     elif "columns" in wire_options:
         wire_options = {"csv": wire_options}
+    elif "image_alt_text" in wire_options:
+        wire_options = {"markdown": wire_options}
     return {"id": str(source.id), "structured_text_options": wire_options}
 
 
@@ -1713,3 +1783,157 @@ async def test_async_rejects_declared_constraint_boundaries_before_transport(
     ) as client:
         with pytest.raises(ValidationError, match=message):
             await getattr(client, method)(source, **options)
+
+
+STRUCTURED_FORMATS = [
+    pytest.param(
+        ConvertMarkdownToPdfPayload,
+        "convert_markdown_to_pdf",
+        ".md",
+        "text/markdown",
+        id="markdown",
+    ),
+    pytest.param(
+        ConvertPlainTextToPdfPayload,
+        "convert_plain_text_to_pdf",
+        ".txt",
+        "text/plain",
+        id="plain-text",
+    ),
+    pytest.param(
+        ConvertJsonToPdfPayload,
+        "convert_json_to_pdf",
+        ".json",
+        "application/json",
+        id="json",
+    ),
+    pytest.param(
+        ConvertXmlToPdfPayload,
+        "convert_xml_to_pdf",
+        ".xml",
+        "application/xml",
+        id="xml",
+    ),
+    pytest.param(
+        ConvertCsvToPdfPayload,
+        "convert_csv_to_pdf",
+        ".csv",
+        "text/csv",
+        id="csv",
+    ),
+]
+INVALID_SOURCE_COUNTS = [
+    pytest.param(0, "at least 1 item", id="empty"),
+    pytest.param(2, "at most 1 item", id="multiple"),
+]
+
+
+@pytest.mark.parametrize(
+    ("payload_model", "_method", "extension", "mime_type"), STRUCTURED_FORMATS
+)
+@pytest.mark.parametrize(("count", "message"), INVALID_SOURCE_COUNTS)
+def test_payload_rejects_source_cardinality_bounds(
+    payload_model: type[BaseModel],
+    _method: str,
+    extension: str,
+    mime_type: str,
+    count: int,
+    message: str,
+) -> None:
+    source = _make_format_file(extension, mime_type)
+    with pytest.raises(ValidationError, match=rf"(?s)files.*{message}"):
+        payload_model.model_validate({"files": [source] * count})
+
+
+@pytest.mark.parametrize(
+    ("_payload_model", "method", "extension", "mime_type"), STRUCTURED_FORMATS
+)
+@pytest.mark.parametrize(("count", "message"), INVALID_SOURCE_COUNTS)
+def test_sync_rejects_source_cardinality_bounds_before_transport(
+    _payload_model: type[BaseModel],
+    method: str,
+    extension: str,
+    mime_type: str,
+    count: int,
+    message: str,
+    validation_transport: httpx.MockTransport,
+) -> None:
+    source = _make_format_file(extension, mime_type)
+    with (
+        PdfRestClient(api_key=VALID_API_KEY, transport=validation_transport) as client,
+        pytest.raises(ValidationError, match=rf"(?s)files.*{message}"),
+    ):
+        getattr(client, method)([source] * count)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("_payload_model", "method", "extension", "mime_type"), STRUCTURED_FORMATS
+)
+@pytest.mark.parametrize(("count", "message"), INVALID_SOURCE_COUNTS)
+async def test_async_rejects_source_cardinality_bounds_before_transport(
+    _payload_model: type[BaseModel],
+    method: str,
+    extension: str,
+    mime_type: str,
+    count: int,
+    message: str,
+    validation_transport: httpx.MockTransport,
+) -> None:
+    source = _make_format_file(extension, mime_type)
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=validation_transport
+    ) as client:
+        with pytest.raises(ValidationError, match=rf"(?s)files.*{message}"):
+            await getattr(client, method)([source] * count)
+
+
+@pytest.mark.parametrize(
+    "index", [pytest.param(0, id="minimum"), pytest.param(1, id="inside")]
+)
+def test_markdown_image_index_accepts_nonnegative_boundaries(index: int) -> None:
+    source = _make_format_file(".md", "text/markdown")
+    options = {"markdown": {"image_sources": {"logo": {"image_id_index": index}}}}
+    payload = ConvertMarkdownToPdfPayload.model_validate(
+        {"files": source, "structured_text_options": options}
+    )
+    assert _dump_payload(payload) == {
+        "id": str(source.id),
+        "structured_text_options": options,
+    }
+
+
+def test_markdown_image_index_rejects_negative_boundary() -> None:
+    source = _make_format_file(".md", "text/markdown")
+    with pytest.raises(
+        ValidationError, match=r"(?s)image_id_index.*greater than or equal to 0"
+    ):
+        ConvertMarkdownToPdfPayload.model_validate(
+            {
+                "files": source,
+                "structured_text_options": {
+                    "markdown": {"image_sources": {"logo": {"image_id_index": -1}}}
+                },
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "count", [pytest.param(1, id="minimum"), pytest.param(2, id="inside")]
+)
+def test_markdown_image_ids_accept_nonempty_boundaries(count: int) -> None:
+    source = _make_format_file(".md", "text/markdown")
+    image = make_image_file(str(PdfRestFileID.generate(2)), "image/png", "logo.png")
+    payload = ConvertMarkdownToPdfPayload.model_validate(
+        {"files": source, "image_ids": [image] * count}
+    )
+    assert _dump_payload(payload) == {
+        "id": str(source.id),
+        "image_ids": [str(image.id)] * count,
+    }
+
+
+def test_markdown_image_ids_reject_empty_list() -> None:
+    source = _make_format_file(".md", "text/markdown")
+    with pytest.raises(ValidationError, match=r"(?s)image_ids.*at least 1 item"):
+        ConvertMarkdownToPdfPayload.model_validate({"files": source, "image_ids": []})
