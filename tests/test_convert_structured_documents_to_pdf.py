@@ -1485,3 +1485,231 @@ async def test_async_convert_csv_to_pdf_rejects_delimiter_before_transport(
     ) as client:
         with pytest.raises(ValidationError, match=rf"(?s)delimiter.*{message}"):
             await client.convert_csv_to_pdf(source, delimiter=delimiter)
+
+
+def _nested_option(path: tuple[str, ...], value: Any) -> dict[str, Any]:
+    options: dict[str, Any] = {path[-1]: value}
+    for key in reversed(path[:-1]):
+        options = {key: options}
+    return options
+
+
+def _numeric_options(path: tuple[str, ...], value: float) -> dict[str, Any]:
+    if path[0] == "columns":
+        return {"columns": [{"index": 0, path[-1]: value}]}
+    if path[-1] == "column_width_weights":
+        return _nested_option(path, [value])
+    if path in (("page_setup", "width"), ("page_setup", "height")):
+        return {"page_setup": {"width": 612, "height": 792, path[-1]: value}}
+    return _nested_option(path, value)
+
+
+NUMERIC_BOUNDARIES: list[
+    tuple[tuple[str, ...], tuple[float, ...], tuple[float, ...], str]
+] = [
+    (("page_setup", "width"), (0.1, 1), (0, -0.1), "greater than 0"),
+    (("page_setup", "height"), (0.1, 1), (0, -0.1), "greater than 0"),
+    *[
+        (
+            ("page_setup", "margin", side),
+            (0, 0.1),
+            (-0.1,),
+            "greater than or equal to 0",
+        )
+        for side in ("top", "right", "bottom", "left")
+    ],
+    (
+        ("style", "text_size"),
+        (6, 7, 71, 72),
+        (5, 73),
+        "greater than or equal to 6|less than or equal to 72",
+    ),
+    (
+        ("style", "heading_scale"),
+        (0.1, 3.9, 4),
+        (0, -0.1, 4.1),
+        "greater than 0|less than or equal to 4",
+    ),
+    (
+        ("table_style", "border_width"),
+        (0, 0.1, 11.9, 12),
+        (-0.1, 12.1),
+        "greater than or equal to 0|less than or equal to 12",
+    ),
+    *[
+        (
+            ("table_style", "cell_padding", side),
+            (0, 0.1, 71.9, 72),
+            (-0.1, 72.1),
+            "greater than or equal to 0|less than or equal to 72",
+        )
+        for side in ("top", "right", "bottom", "left")
+    ],
+    (("table_style", "column_width_weights"), (0.1, 1), (0, -0.1), "greater than 0"),
+    (("columns", "index"), (0, 1), (-1,), "greater than or equal to 0"),
+    (("columns", "width_weight"), (0.1, 1), (0, -0.1), "greater than 0"),
+]
+
+VALID_OPTION_BOUNDARIES = [
+    pytest.param(_numeric_options(path, value), id=f"{'-'.join(path)}-{value}")
+    for path, accepted, _, _ in NUMERIC_BOUNDARIES
+    for value in accepted
+]
+INVALID_OPTION_BOUNDARIES = [
+    pytest.param(
+        _numeric_options(path, value),
+        rf"(?s){path[-1]}.*(?:{message})",
+        id=f"{'-'.join(path)}-{value}",
+    )
+    for path, _, rejected, message in NUMERIC_BOUNDARIES
+    for value in rejected
+]
+
+RGB_FIELDS = [
+    ("style", "text_color_rgb"),
+    *[
+        ("table_style", field)
+        for field in (
+            "border_color_rgb",
+            "header_fill_color_rgb",
+            "header_text_color_rgb",
+            "row_fill_color_rgb",
+            "alternate_row_fill_color_rgb",
+        )
+    ],
+]
+VALID_OPTION_BOUNDARIES.extend(
+    pytest.param(
+        _nested_option(
+            path, [value if index == channel else 128 for index in range(3)]
+        ),
+        id=f"{'-'.join(path)}-channel-{channel}-{value}",
+    )
+    for path in RGB_FIELDS
+    for channel in range(3)
+    for value in (0, 1, 254, 255)
+)
+INVALID_OPTION_BOUNDARIES.extend(
+    pytest.param(
+        _nested_option(
+            path, [value if index == channel else 128 for index in range(3)]
+        ),
+        rf"(?s){path[-1]}\.{channel}.*(?:greater than or equal to 0|less than or equal to 255)",
+        id=f"{'-'.join(path)}-channel-{channel}-{value}",
+    )
+    for path in RGB_FIELDS
+    for channel in range(3)
+    for value in (-1, 256)
+)
+INVALID_OPTION_BOUNDARIES.extend(
+    pytest.param(
+        _nested_option(path, [128] * length),
+        rf"(?s){path[-1]}.*(?:Field required|at most 3 items)",
+        id=f"{'-'.join(path)}-{length}-channels",
+    )
+    for path in RGB_FIELDS
+    for length in (2, 4)
+)
+
+
+def _boundary_source(
+    options: dict[str, Any],
+) -> tuple[PdfRestFile, type[BaseModel], str]:
+    if "columns" in options:
+        return (
+            _make_format_file(".csv", "text/csv"),
+            ConvertCsvToPdfPayload,
+            "convert_csv_to_pdf",
+        )
+    return (
+        _make_format_file(".md", "text/markdown"),
+        ConvertMarkdownToPdfPayload,
+        "convert_markdown_to_pdf",
+    )
+
+
+def _expected_boundary_payload(
+    source: PdfRestFile, options: dict[str, Any]
+) -> dict[str, Any]:
+    wire_options = dict(options)
+    if "table_style" in wire_options:
+        wire_options["style"] = {"table": wire_options.pop("table_style")}
+    elif "columns" in wire_options:
+        wire_options = {"csv": wire_options}
+    return {"id": str(source.id), "structured_text_options": wire_options}
+
+
+@pytest.mark.parametrize("options", VALID_OPTION_BOUNDARIES)
+def test_payload_accepts_declared_constraint_boundaries(
+    options: dict[str, Any],
+) -> None:
+    source, payload_model, _ = _boundary_source(options)
+    payload = payload_model.model_validate({"files": source, **options})
+    assert _dump_payload(payload) == _expected_boundary_payload(source, options)
+
+
+@pytest.mark.parametrize("options", VALID_OPTION_BOUNDARIES)
+def test_sync_accepts_declared_constraint_boundaries(
+    monkeypatch: pytest.MonkeyPatch, options: dict[str, Any]
+) -> None:
+    source, _, method = _boundary_source(options)
+    expected = _expected_boundary_payload(source, options)
+    _sync_conversion(
+        monkeypatch,
+        source,
+        expected,
+        lambda client: getattr(client, method)(source, **options),
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("options", VALID_OPTION_BOUNDARIES)
+async def test_async_accepts_declared_constraint_boundaries(
+    monkeypatch: pytest.MonkeyPatch, options: dict[str, Any]
+) -> None:
+    source, _, method = _boundary_source(options)
+    expected = _expected_boundary_payload(source, options)
+    await _async_conversion(
+        monkeypatch,
+        source,
+        expected,
+        lambda client: getattr(client, method)(source, **options),
+    )
+
+
+@pytest.mark.parametrize(("options", "message"), INVALID_OPTION_BOUNDARIES)
+def test_payload_rejects_declared_constraint_boundaries(
+    options: dict[str, Any], message: str
+) -> None:
+    source, payload_model, _ = _boundary_source(options)
+    with pytest.raises(ValidationError, match=message):
+        payload_model.model_validate({"files": source, **options})
+
+
+@pytest.mark.parametrize(("options", "message"), INVALID_OPTION_BOUNDARIES)
+def test_sync_rejects_declared_constraint_boundaries_before_transport(
+    options: dict[str, Any],
+    message: str,
+    validation_transport: httpx.MockTransport,
+) -> None:
+    source, _, method = _boundary_source(options)
+    with (
+        PdfRestClient(api_key=VALID_API_KEY, transport=validation_transport) as client,
+        pytest.raises(ValidationError, match=message),
+    ):
+        getattr(client, method)(source, **options)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("options", "message"), INVALID_OPTION_BOUNDARIES)
+async def test_async_rejects_declared_constraint_boundaries_before_transport(
+    options: dict[str, Any],
+    message: str,
+    validation_transport: httpx.MockTransport,
+) -> None:
+    source, _, method = _boundary_source(options)
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=validation_transport
+    ) as client:
+        with pytest.raises(ValidationError, match=message):
+            await getattr(client, method)(source, **options)
