@@ -47,6 +47,18 @@ KNOWN_FONTS = [
     for value in get_args(PdfStructuredTextKnownFont)
 ]
 
+CSV_DELIMITERS = [
+    pytest.param(" ", id="space"),
+    pytest.param("\t", id="tab"),
+    pytest.param(",", id="comma"),
+    pytest.param(";", id="semicolon"),
+]
+ALT_TEXT_VALUES = [
+    pytest.param(" ", id="space"),
+    pytest.param("\t", id="tab"),
+    pytest.param("  Company logo  ", id="padded-text"),
+]
+
 
 def _dump_payload(model: BaseModel) -> dict[str, Any]:
     return model.model_dump(
@@ -1263,3 +1275,213 @@ async def test_async_structured_conversions_request_customization(
         "write": pytest.approx(0.6),
         "pool": pytest.approx(0.6),
     }
+
+
+@pytest.mark.parametrize("delimiter", CSV_DELIMITERS)
+def test_csv_payload_preserves_delimiter(delimiter: str) -> None:
+    source = _make_format_file(".csv", "text/csv")
+    payload = ConvertCsvToPdfPayload.model_validate(
+        {"files": source, "delimiter": delimiter}
+    )
+    assert _dump_payload(payload) == {
+        "id": str(source.id),
+        "structured_text_options": {"csv": {"delimiter": delimiter}},
+    }
+
+
+@pytest.mark.parametrize("delimiter", CSV_DELIMITERS)
+def test_convert_csv_to_pdf_preserves_delimiter(
+    monkeypatch: pytest.MonkeyPatch, delimiter: str
+) -> None:
+    source = _make_format_file(".csv", "text/csv")
+    _sync_conversion(
+        monkeypatch,
+        source,
+        {
+            "id": str(source.id),
+            "structured_text_options": {"csv": {"delimiter": delimiter}},
+        },
+        lambda client: client.convert_csv_to_pdf(source, delimiter=delimiter),
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("delimiter", CSV_DELIMITERS)
+async def test_async_convert_csv_to_pdf_preserves_delimiter(
+    monkeypatch: pytest.MonkeyPatch, delimiter: str
+) -> None:
+    source = _make_format_file(".csv", "text/csv")
+    await _async_conversion(
+        monkeypatch,
+        source,
+        {
+            "id": str(source.id),
+            "structured_text_options": {"csv": {"delimiter": delimiter}},
+        },
+        lambda client: client.convert_csv_to_pdf(source, delimiter=delimiter),
+    )
+
+
+@pytest.mark.parametrize("alt_text", ALT_TEXT_VALUES)
+def test_markdown_payload_preserves_alt_text(alt_text: str) -> None:
+    source = _make_format_file(".md", "text/markdown")
+    payload = ConvertMarkdownToPdfPayload.model_validate(
+        {"files": source, "image_alt_text": {"logo": alt_text}}
+    )
+    assert _dump_payload(payload) == {
+        "id": str(source.id),
+        "structured_text_options": {"markdown": {"image_alt_text": {"logo": alt_text}}},
+    }
+
+
+@pytest.mark.parametrize("alt_text", ALT_TEXT_VALUES)
+def test_convert_markdown_to_pdf_preserves_alt_text(
+    monkeypatch: pytest.MonkeyPatch, alt_text: str
+) -> None:
+    source = _make_format_file(".md", "text/markdown")
+    _sync_conversion(
+        monkeypatch,
+        source,
+        {
+            "id": str(source.id),
+            "structured_text_options": {
+                "markdown": {"image_alt_text": {"logo": alt_text}}
+            },
+        },
+        lambda client: client.convert_markdown_to_pdf(
+            source, image_alt_text={"logo": alt_text}
+        ),
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("alt_text", ALT_TEXT_VALUES)
+async def test_async_convert_markdown_to_pdf_preserves_alt_text(
+    monkeypatch: pytest.MonkeyPatch, alt_text: str
+) -> None:
+    source = _make_format_file(".md", "text/markdown")
+    await _async_conversion(
+        monkeypatch,
+        source,
+        {
+            "id": str(source.id),
+            "structured_text_options": {
+                "markdown": {"image_alt_text": {"logo": alt_text}}
+            },
+        },
+        lambda client: client.convert_markdown_to_pdf(
+            source, image_alt_text={"logo": alt_text}
+        ),
+    )
+
+
+TRIMMED_TEXT_OPTIONS = [
+    pytest.param({"title": "  Report  "}, {"title": "Report"}, id="title"),
+    pytest.param({"language": "  en-US  "}, {"language": "en-US"}, id="language"),
+    *[
+        pytest.param(
+            {"style": {field: "  Noto Sans  "}},
+            {"style": {field: "Noto Sans"}},
+            id=field,
+        )
+        for field in ("font", "heading_font", "code_font", "cjk_font")
+    ],
+    pytest.param(
+        {"style": {"fallback_fonts": ["  arial  ", "  Noto Sans  "]}},
+        {"style": {"fallback_fonts": ["arial", "Noto Sans"]}},
+        id="fallback-fonts",
+    ),
+]
+
+
+@pytest.mark.parametrize(("options", "expected_options"), TRIMMED_TEXT_OPTIONS)
+def test_payload_trims_api_normalized_text(
+    options: dict[str, Any], expected_options: dict[str, Any]
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    payload = ConvertPlainTextToPdfPayload.model_validate({"files": source, **options})
+    assert _dump_payload(payload) == {
+        "id": str(source.id),
+        "structured_text_options": expected_options,
+    }
+
+
+@pytest.mark.parametrize(("options", "expected_options"), TRIMMED_TEXT_OPTIONS)
+def test_convert_plain_text_to_pdf_trims_api_normalized_text(
+    monkeypatch: pytest.MonkeyPatch,
+    options: dict[str, Any],
+    expected_options: dict[str, Any],
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    _sync_conversion(
+        monkeypatch,
+        source,
+        {"id": str(source.id), "structured_text_options": expected_options},
+        lambda client: client.convert_plain_text_to_pdf(source, **options),
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("options", "expected_options"), TRIMMED_TEXT_OPTIONS)
+async def test_async_convert_plain_text_to_pdf_trims_api_normalized_text(
+    monkeypatch: pytest.MonkeyPatch,
+    options: dict[str, Any],
+    expected_options: dict[str, Any],
+) -> None:
+    source = _make_format_file(".txt", "text/plain")
+    await _async_conversion(
+        monkeypatch,
+        source,
+        {"id": str(source.id), "structured_text_options": expected_options},
+        lambda client: client.convert_plain_text_to_pdf(source, **options),
+    )
+
+
+INVALID_CSV_DELIMITERS = [
+    pytest.param("", "at least 1 character", id="empty"),
+    pytest.param(", ", "at most 1 character", id="trailing-space"),
+    pytest.param(" ,", "at most 1 character", id="leading-space"),
+    pytest.param(" \t", "at most 1 character", id="two-whitespace-characters"),
+]
+
+
+@pytest.mark.parametrize(("delimiter", "message"), INVALID_CSV_DELIMITERS)
+def test_csv_payload_rejects_delimiter_without_trimming(
+    delimiter: str, message: str
+) -> None:
+    source = _make_format_file(".csv", "text/csv")
+    with pytest.raises(ValidationError, match=rf"(?s)delimiter.*{message}"):
+        ConvertCsvToPdfPayload.model_validate({"files": source, "delimiter": delimiter})
+
+
+@pytest.fixture
+def validation_transport() -> httpx.MockTransport:
+    def fail_transport(_: httpx.Request) -> httpx.Response:
+        pytest.fail("invalid options must not reach transport")
+
+    return httpx.MockTransport(fail_transport)
+
+
+@pytest.mark.parametrize(("delimiter", "message"), INVALID_CSV_DELIMITERS)
+def test_convert_csv_to_pdf_rejects_delimiter_before_transport(
+    delimiter: str, message: str, validation_transport: httpx.MockTransport
+) -> None:
+    source = _make_format_file(".csv", "text/csv")
+    with (
+        PdfRestClient(api_key=VALID_API_KEY, transport=validation_transport) as client,
+        pytest.raises(ValidationError, match=rf"(?s)delimiter.*{message}"),
+    ):
+        client.convert_csv_to_pdf(source, delimiter=delimiter)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("delimiter", "message"), INVALID_CSV_DELIMITERS)
+async def test_async_convert_csv_to_pdf_rejects_delimiter_before_transport(
+    delimiter: str, message: str, validation_transport: httpx.MockTransport
+) -> None:
+    source = _make_format_file(".csv", "text/csv")
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=validation_transport
+    ) as client:
+        with pytest.raises(ValidationError, match=rf"(?s)delimiter.*{message}"):
+            await client.convert_csv_to_pdf(source, delimiter=delimiter)

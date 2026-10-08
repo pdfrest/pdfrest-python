@@ -15,6 +15,7 @@ from pydantic import (
     Field,
     HttpUrl,
     PlainSerializer,
+    StringConstraints,
     model_serializer,
     model_validator,
 )
@@ -944,11 +945,24 @@ _StructuredRgbColor = tuple[
 ]
 _PositiveStructuredNumber = Annotated[float, Field(gt=0)]
 _NonEmptyStructuredString = Annotated[str, Field(min_length=1)]
-_StructuredTextFontName = Annotated[PdfStructuredTextFontName, Field(min_length=1)]
+_TrimmedStructuredString = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1)
+]
+
+
+def _strip_structured_string(value: Any) -> Any:
+    return value.strip() if isinstance(value, str) else value
+
+
+_StructuredTextFontName = Annotated[
+    PdfStructuredTextFontName,
+    BeforeValidator(_strip_structured_string),
+    Field(min_length=1),
+]
 
 
 class _StrictStructuredTextModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(extra="forbid")
 
 
 class _StructuredTextMargin(_StrictStructuredTextModel):
@@ -1042,8 +1056,8 @@ class _StructuredTextCsvOptions(_StrictStructuredTextModel):
 
 
 class _StructuredTextOptionsBase(_StrictStructuredTextModel):
-    title: _NonEmptyStructuredString | None = None
-    language: _NonEmptyStructuredString | None = None
+    title: _TrimmedStructuredString | None = None
+    language: _TrimmedStructuredString | None = None
     enable_tagging: bool | None = None
     page_setup: _StructuredTextPageSetup | None = None
 

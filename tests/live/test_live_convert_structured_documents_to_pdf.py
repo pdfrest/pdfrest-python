@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 import pytest
 
@@ -28,6 +29,11 @@ NAMED_PAGE_SIZES = [
     pytest.param("A5", id="a5"),
     pytest.param("Tabloid", id="tabloid"),
 ]
+
+WHITESPACE_DELIMITER_SKIP_REASON = (
+    "Blocked by clu-structured-text-to-pdf CsvAdapter.ResolveDelimiter(): "
+    "space/tab delimiters fall back to comma. Enable after the CLU fix is deployed."
+)
 
 
 @pytest.fixture(scope="module")
@@ -285,6 +291,75 @@ def test_live_convert_csv_to_pdf_text_align(
         ),
     )
     _assert_structured_pdf(response, source, f"live-csv-{text_align}")
+
+
+@pytest.fixture
+def whitespace_csv_document(
+    tmp_path: Path,
+    delimiter: str,
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+) -> PdfRestFile:
+    """Upload input whose two columns use the delimiter under test."""
+    path = tmp_path / "whitespace-delimited.csv"
+    path.write_text(f"Name{delimiter}Value\nAlpha{delimiter}1\n", encoding="utf-8")
+    with PdfRestClient(
+        api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+    ) as client:
+        return client.files.create_from_paths(path)[0]
+
+
+@pytest.mark.skip(reason=WHITESPACE_DELIMITER_SKIP_REASON)
+@pytest.mark.parametrize(
+    "delimiter", [pytest.param(" ", id="space"), pytest.param("\t", id="tab")]
+)
+def test_live_convert_csv_to_pdf_whitespace_delimiter(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    whitespace_csv_document: PdfRestFile,
+    delimiter: str,
+) -> None:
+    """Selecting the second column requires the delimiter to split the input."""
+    source = whitespace_csv_document
+    response = _run_sync(
+        pdfrest_api_key,
+        pdfrest_live_base_url,
+        lambda client: client.convert_csv_to_pdf(
+            source,
+            delimiter=delimiter,
+            first_row_is_header=True,
+            columns=[PdfStructuredTextCsvColumn(index=1, text_align="right")],
+            output="live-csv-whitespace",
+        ),
+    )
+    _assert_structured_pdf(response, source, "live-csv-whitespace")
+
+
+@pytest.mark.asyncio
+@pytest.mark.skip(reason=WHITESPACE_DELIMITER_SKIP_REASON)
+@pytest.mark.parametrize(
+    "delimiter", [pytest.param(" ", id="space"), pytest.param("\t", id="tab")]
+)
+async def test_live_async_convert_csv_to_pdf_whitespace_delimiter(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    whitespace_csv_document: PdfRestFile,
+    delimiter: str,
+) -> None:
+    """Selecting the second column requires the delimiter to split the input."""
+    source = whitespace_csv_document
+    response = await _run_async(
+        pdfrest_api_key,
+        pdfrest_live_base_url,
+        lambda client: client.convert_csv_to_pdf(
+            source,
+            delimiter=delimiter,
+            first_row_is_header=True,
+            columns=[PdfStructuredTextCsvColumn(index=1, text_align="right")],
+            output="live-csv-async-whitespace",
+        ),
+    )
+    _assert_structured_pdf(response, source, "live-csv-async-whitespace")
 
 
 @pytest.mark.asyncio
