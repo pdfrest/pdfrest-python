@@ -149,6 +149,10 @@
   spelling and its user-visible meaning. Derive meanings from the OpenAPI
   contract or observed server behavior; do not leave callers to infer semantics
   from the strings.
+- When the service documents known names but also accepts installed or custom
+  strings, expose the documented spellings as a public `Literal` and combine it
+  with `str` in the accepted type. This gives callers discoverable names without
+  falsely closing the server contract; keep non-empty validation in the payload.
 - Payload models that reference uploaded resources should accept
   `list[PdfRestFile]` with explicit length bounds and serialize IDs for the
   allowed cardinality (`serialization_alias="id"` plus a serializer that emits
@@ -328,14 +332,15 @@
   failures so the server-side error messaging is exercised.
 
 - Treat a public `Literal` as an enumerated contract, not as representative
-  option coverage. Parameterize every accepted spelling with readable
-  `pytest.param(..., id=...)` cases in the focused payload and client tests. For
-  a helper exposed by both clients, distinct sync and async test functions must
-  send every value; matching live tests must also exercise every value through
-  both transports. Include a server-rejected invalid spelling through
-  `extra_body` when local validation would otherwise prevent that request. The
-  `pr-review-auditor` checks the declared literal values against these cases, so
-  a single happy-path value is insufficient.
+  option coverage. Parameterize every spelling with readable
+  `pytest.param(..., id=...)` cases in the focused payload and distinct sync and
+  async client tests. For a closed catalog, matching live tests must also
+  exercise every value through both transports, with a server-rejected invalid
+  spelling sent via `extra_body`. For a known-value literal combined with open
+  `str`, live-test representative documented and deployment-specific names
+  through both transports; do not expect rejection of unlisted names or assume
+  every published font is installed. The `pr-review-auditor` checks these
+  contracts against the tests, so one unit happy-path value is insufficient.
 
 - Provide live integration tests under `tests/live/` (with an `__init__.py` so
   pytest discovers the package) that introspect payload models to enumerate

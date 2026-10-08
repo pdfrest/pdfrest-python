@@ -14,15 +14,26 @@ an existing helper, such as an added server parameter.
 - Require the PDFCloud-API checkout. Locate it relative to this checkout; do not
   assume a user-specific path.
 - Read this repository's `AGENTS.md` and `TESTING_GUIDELINES.md`, then read
-  `PDFCloud-API/docs/openapi/openapi-spec.yaml` before editing.
-- Treat the OpenAPI operation, schemas, media types, documented errors, and
-  async/polling behavior as the public contract. Inspect API source only to
+  `PDFCloud-API/docs/openapi/cloud/openapi-spec.yaml` before editing. Search
+  this Cloud specification for the requested tool and operation first.
+- Only when a requested new tool is absent from the Cloud specification, use
+  `PDFCloud-API/docs/openapi/container/openapi-spec.yaml` as the fallback
+  contract for that tool. Do not combine Cloud and Container behavior for an
+  operation present in the Cloud specification.
+- Treat the selected OpenAPI operation, schemas, media types, documented errors,
+  and async/polling behavior as the public contract. Inspect API source only to
   clarify behavior absent from, or apparently inconsistent with, that contract.
+- Treat indirect string constraints as discovery tasks, not evidence that a
+  field is free-form. Examples include "whatever the CLU accepts," "named size
+  such as `Letter` or `A4`," and "see the Font List." Follow referenced links
+  and trace wrapper validation into the converter or CLU contract where
+  available. A wrapper that accepts a non-empty string and forwards it to an
+  opaque converter does not establish the converter's accepted values.
 - Do not edit PDFCloud-API unless the user explicitly requests an API-contract
   change.
-- Stop and ask the user for direction if the checkout or documented operation is
-  missing, a required fixture cannot be obtained, or a compatible SDK adaptation
-  cannot be made.
+- Stop and ask the user for direction if the checkout is missing, the requested
+  operation is absent from the applicable specification(s), a required fixture
+  cannot be obtained, or a compatible SDK adaptation cannot be made.
 
 ## Jira branch setup
 
@@ -154,6 +165,43 @@ validation and turns them into the exact pdfRest wire contract.
 - Use native annotated constraints, literals, and length bounds first. Use
   `BeforeValidator` to adapt friendly input shapes, `AfterValidator` for MIME
   and relational validation, and small field serializers for server formatting.
+- Audit string options at every public input level, including nested `TypedDict`
+  fields and list elements. When the server accepts a finite catalog, recover
+  its complete, exact wire values from the selected OpenAPI schema and its
+  descriptions, linked documentation, and, where those are incomplete, the API
+  implementation or converter source. Examples such as `Letter` or `A4` do not
+  establish the full page-size set; a link to a font list does not make an
+  unrestricted font name a useful public contract. Check spelling, case,
+  aliases, and whether values depend on the deployment. Determine whether each
+  recovered list is exhaustive or merely names known values in an open catalog.
+  Do not invent a closed catalog or silently contradict the selected OpenAPI
+  contract.
+- When OpenAPI omits a constraint and a linked document, API implementation, or
+  converter/CLU source supplies it, tell the user before implementing the
+  affected field and in the handoff: identify the field path, the OpenAPI gap,
+  the fallback source, whether the catalog is closed or open, and any unverified
+  deployment behavior. If the sources conflict, report the conflict and ask for
+  direction rather than silently choosing one. If the accepted values or syntax
+  still cannot be established, name the missing information and ask before
+  implementing that field; do not silently leave a suspected enumeration as
+  `str` or narrow it to example values.
+- For a verified closed catalog, define a reusable public `Literal` alias in
+  `pdfrest.types` and use it in the client input, every applicable `TypedDict`
+  field, and the internal payload model so invalid values fail before transport.
+  Structured-text `page_setup.size` is one example of named choices; preserve
+  its separate custom-dimension path. Keep genuinely open-ended values such as
+  titles and custom text as strings.
+- When an option has a published list of known spellings but also accepts
+  deployment-specific or custom strings, expose a documented `Literal` for the
+  known spellings and a public union of that literal with `str`. Use the union
+  in each applicable `TypedDict` field and list element, including structured-
+  text `style` font selectors and `fallback_fonts`. Preserve validation of shape
+  constraints such as non-empty strings in the payload, but do not reject an
+  unlisted name merely for being outside the published list. Document that the
+  literal offers discoverable suggestions, not a closed server catalog. Check
+  whether fields really share the same known values and open behavior. If
+  changing a released `str` input would narrow it, establish a migration
+  decision first; `Literal[...] | str` preserves its accepted string values.
 - Use `validation_alias` for accepted SDK input names and `serialization_alias`
   for the server field name. Serialize uploaded `PdfRestFile` values to the
   required ID field with the existing serializers.
@@ -200,12 +248,22 @@ Follow `TESTING_GUIDELINES.md` and the live-test requirements in `AGENTS.md`.
   Give its `TypeAlias` a PEP 258 docstring immediately after the assignment:
   explain the option, then provide an `Accepted values:` Markdown list with one
   bullet per literal spelling and its user-visible meaning. Derive those
-  meanings from the OpenAPI contract or verified server behavior. Parameterize
-  every accepted spelling with a readable test ID in payload tests and in
-  distinct sync and async client tests; matching live tests must send every
-  spelling through both transports. Do not use one representative happy path.
-  Add an invalid spelling through `extra_body` when a server-side rejection must
-  be demonstrated. This is the evidence expected by `pr-review-auditor`.
+  meanings from the OpenAPI contract or verified server behavior. For a closed
+  catalog, parameterize every accepted spelling with a readable test ID in
+  payload tests and distinct sync/async client and live tests; add a rejected
+  spelling through `extra_body` to prove server validation. For a known-value
+  literal within an open `Literal[...] | str` union, parameterize every listed
+  spelling in payload and sync/async client tests, and test an unlisted,
+  non-empty name through each path. Live-test representative listed and
+  deployment-specific names through both transports; do not assert that the
+  server rejects unlisted strings or that every published font is installed.
+  This is the evidence expected by `pr-review-auditor`.
+- For recovered page-size and font catalogs, test the exact public spellings
+  through the payload and both clients. Assert generated docs expose the
+  choices. Require local rejection of unsupported values only for closed
+  catalogs; for open unions, require non-empty name validation instead. When
+  font selection is the behavior under test, inspect the generated PDF's font
+  resources rather than treating successful conversion as proof of font use.
 - For a payload containing a discriminated JSON-object union, add a direct
   serialization assertion for every discriminator and distinct sync/async client
   tests that send each form. Parameterize all `ge`/`gt`/`le`/`lt` constraints at
