@@ -220,10 +220,14 @@
   customization (sync + async), validation failures, and multi-file guards. Add
   a shared validation suite when multiple endpoints rely on the same input rules
   (e.g., `tests/test_graphic_payload_validation.py`).
-- Do not import from private modules (names beginning with an underscore) in
-  production code. In tests, prefer public modules first; allow private-model
-  imports only when necessary to validate request serialization or mock
-  server-facing payload contracts that are not exposed publicly.
+- Production code may import private modules and symbols within its own package,
+  including `pdfrest.client` importing `pdfrest.models._internal`. Do not import
+  private modules or symbols from external packages; use their supported public
+  APIs. Another company-owned package is still an external dependency. Keep
+  package-owned internals outside public exports unless intentionally promoted
+  to a supported API. In tests, prefer public APIs; access package-owned
+  internals when needed to verify implementation behavior or request
+  serialization.
 
 ## Testing Guidelines
 
