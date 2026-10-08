@@ -36,6 +36,7 @@ is documented on
 ```python
 from pdfrest import AsyncPdfRestClient
 
+
 async def process_pdf() -> None:
     async with AsyncPdfRestClient() as client:
         uploaded = await client.files.create_from_paths(["./input.pdf"])
@@ -63,6 +64,7 @@ multipart tuples.
     ```python
     from pathlib import Path
     from pdfrest import AsyncPdfRestClient
+
 
     async def upload() -> None:
         async with AsyncPdfRestClient() as client, Path("input.pdf").open("rb") as fh:
@@ -99,6 +101,7 @@ Best default for local files. Each entry can be:
     ```python
     from pdfrest import AsyncPdfRestClient
 
+
     async def upload_from_paths() -> None:
         async with AsyncPdfRestClient() as client:
             uploaded = await client.files.create_from_paths(
@@ -118,14 +121,13 @@ Use this when pdfRest should fetch files from `http`/`https` URLs.
     from pdfrest import PdfRestClient
 
     with PdfRestClient() as client:
-        uploaded = client.files.create_from_urls(
-            ["https://example.com/document.pdf"]
-        )
+        uploaded = client.files.create_from_urls(["https://example.com/document.pdf"])
     ```
 
 === "Async"
     ```python
     from pdfrest import AsyncPdfRestClient
+
 
     async def upload_from_urls() -> None:
         async with AsyncPdfRestClient() as client:
@@ -172,6 +174,7 @@ not need metadata first.
 
     existing_id = "1de305d2-b6a0-4b5d-9a55-4e4e6d8c2d39"
 
+
     async def work_with_existing_id() -> None:
         async with AsyncPdfRestClient() as client:
             # Hydrate metadata into PdfRestFile
@@ -194,6 +197,7 @@ not need metadata first.
 === "Async"
     ```python
     from pdfrest import AsyncPdfRestClient
+
 
     async def fetch_metadata() -> None:
         async with AsyncPdfRestClient() as client:
@@ -233,6 +237,7 @@ or a file ID string for all methods below.
     ```python
     from pdfrest import AsyncPdfRestClient
 
+
     async def read_as_bytes() -> None:
         async with AsyncPdfRestClient() as client:
             uploaded = await client.files.create_from_paths(["./input.pdf"])
@@ -253,6 +258,7 @@ or a file ID string for all methods below.
 === "Async"
     ```python
     from pdfrest import AsyncPdfRestClient
+
 
     async def read_as_text() -> None:
         async with AsyncPdfRestClient() as client:
@@ -275,6 +281,7 @@ or a file ID string for all methods below.
     ```python
     from pdfrest import AsyncPdfRestClient
 
+
     async def read_as_json() -> None:
         async with AsyncPdfRestClient() as client:
             uploaded = await client.files.create_from_paths(["./metadata.json"])
@@ -295,6 +302,7 @@ or a file ID string for all methods below.
 === "Async"
     ```python
     from pdfrest import AsyncPdfRestClient
+
 
     async def write_to_disk() -> None:
         async with AsyncPdfRestClient() as client:
@@ -321,6 +329,7 @@ Use this when files are large or you need chunk/line-level processing.
 === "Async"
     ```python
     from pdfrest import AsyncPdfRestClient
+
 
     async def stream_download() -> None:
         async with AsyncPdfRestClient() as client:
@@ -365,6 +374,7 @@ Both stream wrappers also expose text/line/raw iterators:
     ```python
     from pdfrest import AsyncPdfRestClient
 
+
     async def stream_bytes() -> None:
         async with AsyncPdfRestClient() as client:
             uploaded = await client.files.create_from_paths(["./input.pdf"])
@@ -391,6 +401,7 @@ Both stream wrappers also expose text/line/raw iterators:
 === "Async"
     ```python
     from pdfrest import AsyncPdfRestClient
+
 
     async def stream_text() -> None:
         async with AsyncPdfRestClient() as client:
@@ -419,6 +430,7 @@ Both stream wrappers also expose text/line/raw iterators:
     ```python
     from pdfrest import AsyncPdfRestClient
 
+
     async def stream_lines() -> None:
         async with AsyncPdfRestClient() as client:
             uploaded = await client.files.create_from_paths(["./events.ndjson"])
@@ -445,6 +457,7 @@ Both stream wrappers also expose text/line/raw iterators:
 === "Async"
     ```python
     from pdfrest import AsyncPdfRestClient
+
 
     async def stream_raw() -> None:
         async with AsyncPdfRestClient() as client:
@@ -482,6 +495,7 @@ upload calls can be passed directly into many endpoint helpers.
     ```python
     from pdfrest import AsyncPdfRestClient
 
+
     async def chain_calls() -> None:
         async with AsyncPdfRestClient() as client:
             uploaded = await client.files.create_from_paths(["./input.pdf"])
@@ -509,6 +523,7 @@ Delete uploaded files when you no longer need them:
 === "Async"
     ```python
     from pdfrest import AsyncPdfRestClient
+
 
     async def delete_files() -> None:
         async with AsyncPdfRestClient() as client:
@@ -546,6 +561,7 @@ that failed, so you can report each file-level failure precisely.
 === "Async"
     ```python
     from pdfrest import AsyncPdfRestClient, PdfRestDeleteError, PdfRestErrorGroup
+
 
     async def delete_with_error_handling() -> None:
         async with AsyncPdfRestClient() as client:

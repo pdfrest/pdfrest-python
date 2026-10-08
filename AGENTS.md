@@ -449,9 +449,10 @@
 
 ## CI & Publishing Notes
 
-- GitHub Actions run three workflows: `pre-commit` (no AWS credentials),
-  `Test and Publish` (Python 3.10–3.14 matrix), and `Docs` (GitHub Pages build
-  and deploy on `main` push/manual dispatch).
+- GitHub Actions run `pre-commit`, `basedpyright`, and `Test and Publish`
+  (Python 3.10–3.14 test and example matrices). `Test and Publish` also runs
+  `Docs Check` on Python 3.11 with `uv run mkdocs build --strict`; PRs upload a
+  docs preview artifact. Netlify hosts the documentation site.
 - Only the release job assumes the AWS OIDC role to `uv build` and publish with
   `uv publish`.
 - Keep CodeArtifact credentials out of source control; day-to-day development

@@ -8,38 +8,33 @@ on:
       - develop
       - feature-*
 
+permissions:
+  contents: read
+
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-      packages: write
-      pull-requests: write
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          version: 0.8.22
+          version: 0.12.18
           python-version: 3.11
           enable-cache: true
           cache-suffix: pre-commit
           cache-dependency-glob: uv.lock
-      - name: Restore venv cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            .venv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
       - name: Restore pre-commit cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-4|${{ hashFiles('.pre-commit-config.yaml') }}
+          path: ${{ runner.temp }}/pre-commit-cache
+          key: pre-commit-${{ runner.os }}-${{ runner.arch }}-py3.11-uv0.12.18-pre-commit4.6.2-${{ hashFiles('uv.lock', '.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-${{ runner.os }}-${{ runner.arch }}-py3.11-uv0.12.18-pre-commit4.6.2-
       - name: Synchronize project dependencies
-        run: uv sync --group dev
+        run: uv sync --frozen --group dev
       - name: Run pre-commit checks
-        run: uv run pre-commit run --show-diff-on-failure --all-files
+        run: uv run --frozen pre-commit run --show-diff-on-failure --all-files
         env:
-          SKIP: basedpyright
+          PRE_COMMIT_HOME: ${{ runner.temp }}/pre-commit-cache
