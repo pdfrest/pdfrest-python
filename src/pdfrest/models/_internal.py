@@ -29,6 +29,7 @@ from ..types import (
     HtmlWebLayout,
     OcrLanguage,
     PdfAType,
+    PdfContentStructureType,
     PdfConversionCompression,
     PdfConversionDownsample,
     PdfConversionLocale,
@@ -135,8 +136,9 @@ def _split_comma_string(value: Any) -> list[Any] | None:
     raise ValueError(msg)
 
 
-def _route_text_color_by_channel_count(
+def _route_color_by_channel_count(
     *,
+    color_name: str,
     expected_channel_count: int,
     alternate_channel_count: int,
 ) -> Callable[[Any], list[Any] | None]:
@@ -148,7 +150,7 @@ def _route_text_color_by_channel_count(
             return channels
         if len(channels) == alternate_channel_count:
             return None
-        msg = "text_color must include exactly 3 (RGB) or 4 (CMYK) values."
+        msg = f"{color_name} must include exactly 3 (RGB) or 4 (CMYK) values."
         raise ValueError(msg)
 
     return _validator
@@ -238,6 +240,10 @@ def _serialize_text_objects(value: list[BaseModel]) -> str:
         for entry in value
     ]
     return to_json(payload).decode()
+
+
+def _serialize_shape_objects(value: list[BaseModel]) -> list[dict[str, Any]]:
+    return [entry.model_dump(mode="json", exclude_none=True) for entry in value]
 
 
 def _serialize_signature_configuration(
@@ -1828,6 +1834,174 @@ class PdfAddTextPayload(BaseModel):
     ] = None
 
 
+class _PdfAddedShapeBaseModel(BaseModel):
+    """Shared validation and serialization for shapes added to PDFs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    page: Annotated[
+        Literal["all"] | Annotated[int, Field(ge=1)],
+        Field(serialization_alias="page"),
+    ]
+    opacity: Annotated[
+        float | None,
+        Field(serialization_alias="opacity", ge=0.0, le=1.0, default=None),
+    ] = None
+    stroke_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(
+            validation_alias="stroke_color",
+            serialization_alias="stroke_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="stroke_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
+        PlainSerializer(_serialize_as_comma_separated_string),
+    ] = None
+    stroke_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(
+            validation_alias="stroke_color",
+            serialization_alias="stroke_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="stroke_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
+        PlainSerializer(_serialize_as_comma_separated_string),
+    ] = None
+    stroke_width: Annotated[
+        float | None,
+        Field(serialization_alias="stroke_width", gt=0, default=None),
+    ] = None
+    tag_actual_text: Annotated[
+        str | None,
+        Field(serialization_alias="tag_actual_text", min_length=1, default=None),
+    ] = None
+    tag_is_artifact: Annotated[
+        bool | None,
+        Field(serialization_alias="tag_is_artifact", default=None),
+    ] = None
+    tag_structure_type: Annotated[
+        PdfContentStructureType | None,
+        Field(serialization_alias="tag_structure_type", default=None),
+    ] = None
+
+
+class PdfAddedLineObjectModel(_PdfAddedShapeBaseModel):
+    """Adapt a line shape into the pdfRest JSON request contract."""
+
+    type: Literal["line"]
+    x1: Annotated[float, Field(ge=0, serialization_alias="x1")]
+    y1: Annotated[float, Field(ge=0, serialization_alias="y1")]
+    x2: Annotated[float, Field(ge=0, serialization_alias="x2")]
+    y2: Annotated[float, Field(ge=0, serialization_alias="y2")]
+
+
+class PdfAddedRectangleObjectModel(_PdfAddedShapeBaseModel):
+    """Adapt a rectangle shape into the pdfRest JSON request contract."""
+
+    type: Literal["rectangle"]
+    x: Annotated[float, Field(ge=0, serialization_alias="x")]
+    y: Annotated[float, Field(ge=0, serialization_alias="y")]
+    width: Annotated[float, Field(gt=0, serialization_alias="width")]
+    height: Annotated[float, Field(gt=0, serialization_alias="height")]
+    fill_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(
+            validation_alias="fill_color",
+            serialization_alias="fill_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="fill_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
+        PlainSerializer(_serialize_as_comma_separated_string),
+    ] = None
+    fill_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(
+            validation_alias="fill_color",
+            serialization_alias="fill_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="fill_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
+        PlainSerializer(_serialize_as_comma_separated_string),
+    ] = None
+
+
+PdfAddedShapeObjectModel = Annotated[
+    PdfAddedLineObjectModel | PdfAddedRectangleObjectModel,
+    Field(discriminator="type"),
+]
+
+
+class PdfAddShapesPayload(BaseModel):
+    """Adapt caller shape options into a pdfRest-ready add-shapes request payload."""
+
+    files: Annotated[
+        list[PdfRestFile],
+        Field(
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("file", "files"),
+            serialization_alias="id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    shape_objects: Annotated[
+        list[PdfAddedShapeObjectModel],
+        Field(serialization_alias="shape_objects", min_length=1),
+        BeforeValidator(_ensure_list),
+        PlainSerializer(_serialize_shape_objects),
+    ]
+    tag_enabled: Annotated[
+        bool | None,
+        Field(serialization_alias="tag_enabled", default=None),
+    ] = None
+    output: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+    @model_validator(mode="after")
+    def _require_tagging_for_shape_metadata(self) -> PdfAddShapesPayload:
+        has_tag_metadata = any(
+            shape.tag_actual_text is not None
+            or shape.tag_is_artifact is not None
+            or shape.tag_structure_type is not None
+            for shape in self.shape_objects
+        )
+        if has_tag_metadata and self.tag_enabled is not True:
+            msg = "tag_enabled must be true when tag options are provided."
+            raise ValueError(msg)
+        return self
+
+
 class PdfAddImagePayload(BaseModel):
     """Adapt caller options into a pdfRest-ready add-image request payload."""
 
@@ -1963,7 +2137,8 @@ class PdfTextWatermarkPayload(_BasePdfWatermarkPayload):
             default=None,
         ),
         BeforeValidator(
-            _route_text_color_by_channel_count(
+            _route_color_by_channel_count(
+                color_name="text_color",
                 expected_channel_count=3,
                 alternate_channel_count=4,
             )
@@ -1978,7 +2153,8 @@ class PdfTextWatermarkPayload(_BasePdfWatermarkPayload):
             default=None,
         ),
         BeforeValidator(
-            _route_text_color_by_channel_count(
+            _route_color_by_channel_count(
+                color_name="text_color",
                 expected_channel_count=4,
                 alternate_channel_count=3,
             )

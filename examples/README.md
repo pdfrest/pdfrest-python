@@ -21,6 +21,8 @@ supported interpreter matrix.
 
 ## Available Examples
 
+- `examples/add_shapes/add_shapes_to_pdf_example.py` – add a styled rectangle
+  and divider line to a PDF with accessibility tagging enabled.
 - `examples/delete/delete_example.py` – demonstrate file deletion (sync + async
   variants).
 - `examples/extract_text/extract_pdf_text_example.py` – run `extract_pdf_text`
