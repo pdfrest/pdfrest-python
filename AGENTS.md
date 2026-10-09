@@ -437,7 +437,16 @@
 
 ## Commit & Pull Request Guidelines
 
-- Follow the `area: summary` convention seen in `pdfassistant-chatbot` (e.g.,
+- This is a public repository. Keep source, tests, examples, documentation,
+  commit messages, PR descriptions, and review comments suitable for public
+  disclosure. Do not name or link private components, implementation classes,
+  repositories, infrastructure, internal hosts, or unrelated Jira work items.
+- Describe service limitations using observable API behavior. For blocked live
+  coverage, document the affected cases and the steps to re-enable them without
+  exposing private implementation details. Reference only the PR's primary Jira
+  work item unless the user explicitly authorizes another reference and confirms
+  it is suitable for public disclosure.
+- Follow the `area: summary` convention (e.g.,
   `client: Add document merge service`).
 - Name the commit scope after the primary file, directory, or domain object
   affected by the change, such as `AGENTS`, `pdfrest-client-api`, `client`,

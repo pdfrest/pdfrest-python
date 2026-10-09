@@ -34,8 +34,8 @@ NAMED_PAGE_SIZES = [
 ]
 
 WHITESPACE_DELIMITER_SKIP_REASON = (
-    "Blocked by clu-structured-text-to-pdf CsvAdapter.ResolveDelimiter(): "
-    "space/tab delimiters fall back to comma. Enable after the CLU fix is deployed."
+    "Blocked by service behavior: explicit space/tab CSV delimiters are ignored. "
+    "Enable after parsing behavior is corrected and deployed."
 )
 
 
