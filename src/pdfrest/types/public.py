@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, get_args
 
 from typing_extensions import Required, TypedDict
@@ -58,6 +58,21 @@ __all__ = (
     "PdfSignatureDisplay",
     "PdfSignatureLocation",
     "PdfSignaturePoint",
+    "PdfStructuredTextCellPadding",
+    "PdfStructuredTextCsvColumn",
+    "PdfStructuredTextDataPresentation",
+    "PdfStructuredTextFontName",
+    "PdfStructuredTextImageSources",
+    "PdfStructuredTextKnownFont",
+    "PdfStructuredTextLineHandling",
+    "PdfStructuredTextMargin",
+    "PdfStructuredTextMissingImageAltText",
+    "PdfStructuredTextPageOrientation",
+    "PdfStructuredTextPageSetup",
+    "PdfStructuredTextPageSize",
+    "PdfStructuredTextStyle",
+    "PdfStructuredTextTableStyle",
+    "PdfStructuredTextTextAlignment",
     "PdfTextColor",
     "PdfXType",
     "PngColorModel",
@@ -142,6 +157,355 @@ PdfCMYKColor = tuple[int, int, int, int]
 PdfRGBColor = tuple[int, int, int]
 PdfColor = PdfRGBColor | PdfCMYKColor
 PdfTextColor = PdfColor
+
+PdfStructuredTextDataPresentation: TypeAlias = Literal["source", "hierarchy"]
+"""JSON/XML presentation accepted by structured document conversion helpers.
+
+Accepted values:
+
+- `source`: Preserve JSON or XML syntax and indentation.
+- `hierarchy`: Render JSON or XML as a readable hierarchy.
+"""
+
+PdfStructuredTextPageOrientation: TypeAlias = Literal["auto", "portrait", "landscape"]
+"""Page orientation accepted by structured document conversion helpers.
+
+Accepted values:
+
+- `auto`: Let the converter choose an orientation appropriate for the content.
+- `portrait`: Use portrait page orientation.
+- `landscape`: Use landscape page orientation.
+"""
+
+PdfStructuredTextPageSize: TypeAlias = Literal[
+    "Letter", "Legal", "Ledger", "A3", "A4", "A5", "Tabloid"
+]
+"""Named page size for structured document conversion.
+
+For a custom size, use ``PdfStructuredTextPageSetup.width`` and ``height``.
+
+Accepted values:
+
+- `Letter`: US letter paper, 612 by 792 PDF points.
+- `Legal`: US legal paper, 612 by 1008 PDF points.
+- `Ledger`: Ledger paper, 1224 by 792 PDF points.
+- `A3`: ISO A3 paper, 842 by 1191 PDF points.
+- `A4`: ISO A4 paper, 595 by 842 PDF points.
+- `A5`: ISO A5 paper, 420 by 595 PDF points.
+- `Tabloid`: Tabloid paper, 792 by 1224 PDF points.
+"""
+
+PdfStructuredTextKnownFont: TypeAlias = Literal[
+    "andalemono",
+    "arial",
+    "arialitalic",
+    "arialbold",
+    "arialblack",
+    "calibri",
+    "calibriitalic",
+    "calibribold",
+    "calibribolditalic",
+    "cambriaitalic",
+    "cambriabold",
+    "cambriabolditalic",
+    "candara",
+    "candaraitalic",
+    "candarabold",
+    "candarabolditalic",
+    "cantarellregular",
+    "cantarelloblique",
+    "cantarellbold",
+    "cantarellboldoblique",
+    "comicsans",
+    "comicsansbold",
+    "constantia",
+    "consolas",
+    "consolasitalic",
+    "consolasbold",
+    "consolasbolditalic",
+    "constantiaitalic",
+    "constantiabold",
+    "constantiabolditalic",
+    "corbel",
+    "corbelitalic",
+    "corbelbold",
+    "corbelbolditalic",
+    "courier",
+    "courieritalic",
+    "courierbold",
+    "courierbolditalic",
+    "dejavu",
+    "dejavu sans mono oblique",
+    "dejavu sans mono bold",
+    "dejavu sans mono bold oblique",
+    "georgia",
+    "georgiaitalic",
+    "georgiabold",
+    "georgiabolditalic",
+    "impact",
+    "tahoma",
+    "timesnewroman",
+    "timesnewromanitalic",
+    "timesnewromanbold",
+    "timesnewromanbolditalic",
+    "trebuchet",
+    "trebuchetitalic",
+    "trebuchetbold",
+    "trebuchetbolditalic",
+    "verdana",
+    "verdanaitalic",
+    "verdanabold",
+    "verdanabolditalic",
+    "webdings",
+]
+"""Published pdfRest font names for structured document conversion.
+
+These are suggestions, not a closed service catalog. An installed font name
+outside this list may also be used through ``PdfStructuredTextFontName``.
+See the [pdfRest Font List](https://pdfrest.com/documentation/fontlist/).
+
+Accepted values:
+
+- `andalemono`: Andale Mono.
+- `arial`: Arial.
+- `arialitalic`: Arial Italic.
+- `arialbold`: Arial Bold.
+- `arialblack`: Arial Black.
+- `calibri`: Calibri.
+- `calibriitalic`: Calibri Italic.
+- `calibribold`: Calibri Bold.
+- `calibribolditalic`: Calibri Bold Italic.
+- `cambriaitalic`: Cambria Italic.
+- `cambriabold`: Cambria Bold.
+- `cambriabolditalic`: Cambria Bold Italic.
+- `candara`: Candara.
+- `candaraitalic`: Candara Italic.
+- `candarabold`: Candara Bold.
+- `candarabolditalic`: Candara Bold Italic.
+- `cantarellregular`: Cantarell.
+- `cantarelloblique`: Cantarell Oblique.
+- `cantarellbold`: Cantarell Bold.
+- `cantarellboldoblique`: Cantarell Bold Oblique.
+- `comicsans`: Comic Sans.
+- `comicsansbold`: Comic Sans Bold.
+- `constantia`: Constantia.
+- `consolas`: Consolas.
+- `consolasitalic`: Consolas Italic.
+- `consolasbold`: Consolas Bold.
+- `consolasbolditalic`: Consolas Bold Italic.
+- `constantiaitalic`: Constantia Italic.
+- `constantiabold`: Constantia Bold.
+- `constantiabolditalic`: Constantia Bold Italic.
+- `corbel`: Corbel.
+- `corbelitalic`: Corbel Italic.
+- `corbelbold`: Corbel Bold.
+- `corbelbolditalic`: Corbel Bold Italic.
+- `courier`: Courier New.
+- `courieritalic`: Courier New Italic.
+- `courierbold`: Courier New Bold.
+- `courierbolditalic`: Courier New Bold Italic.
+- `dejavu`: DejaVu Sans Mono.
+- `dejavu sans mono oblique`: DejaVu Sans Mono Oblique.
+- `dejavu sans mono bold`: DejaVu Sans Mono Bold.
+- `dejavu sans mono bold oblique`: DejaVu Sans Mono Bold Oblique.
+- `georgia`: Georgia.
+- `georgiaitalic`: Georgia Italic.
+- `georgiabold`: Georgia Bold.
+- `georgiabolditalic`: Georgia Bold Italic.
+- `impact`: Impact.
+- `tahoma`: Tahoma.
+- `timesnewroman`: Times New Roman.
+- `timesnewromanitalic`: Times New Roman Italic.
+- `timesnewromanbold`: Times New Roman Bold.
+- `timesnewromanbolditalic`: Times New Roman Bold Italic.
+- `trebuchet`: Trebuchet.
+- `trebuchetitalic`: Trebuchet Italic.
+- `trebuchetbold`: Trebuchet Bold.
+- `trebuchetbolditalic`: Trebuchet Bold Italic.
+- `verdana`: Verdana.
+- `verdanaitalic`: Verdana Italic.
+- `verdanabold`: Verdana Bold.
+- `verdanabolditalic`: Verdana Bold Italic.
+- `webdings`: Webdings.
+"""
+
+PdfStructuredTextFontName: TypeAlias = PdfStructuredTextKnownFont | str
+"""A published pdfRest font token or another font name installed on the service.
+
+Accepted by the ``font``, ``heading_font``, ``code_font``, ``cjk_font``, and
+``fallback_fonts`` fields of ``PdfStructuredTextStyle``. The published tokens
+provide editor suggestions; the ``str`` branch keeps deployment-specific fonts
+available.
+"""
+
+PdfStructuredTextMissingImageAltText: TypeAlias = Literal["warn", "fail", "artifact"]
+"""Policy for Markdown images that do not have alternate text.
+
+Accepted values:
+
+- `warn`: Continue conversion and report missing alternate text according to
+  converter behavior.
+- `fail`: Reject conversion when an image lacks alternate text.
+- `artifact`: Treat an image without alternate text as an artifact.
+"""
+
+PdfStructuredTextLineHandling: TypeAlias = Literal["reflow", "preserve"]
+"""Line-break handling accepted by ``convert_plain_text_to_pdf``.
+
+Accepted values:
+
+- `reflow`: Reflow plain-text lines to fit the page width.
+- `preserve`: Preserve source line breaks.
+"""
+
+PdfStructuredTextTextAlignment: TypeAlias = Literal["left", "center", "right"]
+"""CSV column text alignment accepted by ``convert_csv_to_pdf``.
+
+Accepted values:
+
+- `left`: Align text to the left of the column.
+- `center`: Center text within the column.
+- `right`: Align text to the right of the column.
+"""
+
+
+class PdfStructuredTextMargin(TypedDict, total=False):
+    """Per-side page margins for structured document conversion.
+
+    Attributes:
+        top: Optional top margin in PDF points. Must be at least 0.
+        right: Optional right margin in PDF points. Must be at least 0.
+        bottom: Optional bottom margin in PDF points. Must be at least 0.
+        left: Optional left margin in PDF points. Must be at least 0.
+    """
+
+    top: float
+    right: float
+    bottom: float
+    left: float
+
+
+class PdfStructuredTextPageSetup(TypedDict, total=False):
+    """Page geometry for structured document conversion.
+
+    Attributes:
+        size: Optional named page size. For custom dimensions, supply ``width``
+            and ``height`` instead.
+        width: Optional custom page width in PDF points. Must be greater than 0
+            and supplied together with ``height``.
+        height: Optional custom page height in PDF points. Must be greater than
+            0 and supplied together with ``width``.
+        orientation: Optional ``auto``, ``portrait``, or ``landscape`` page
+            orientation.
+        margin: Optional per-side margins in PDF points.
+    """
+
+    size: PdfStructuredTextPageSize
+    width: float
+    height: float
+    orientation: PdfStructuredTextPageOrientation
+    margin: PdfStructuredTextMargin
+
+
+class PdfStructuredTextCellPadding(TypedDict, total=False):
+    """Per-side table-cell padding for Markdown and CSV conversion.
+
+    Attributes:
+        top: Optional top padding in PDF points, from 0 through 72.
+        right: Optional right padding in PDF points, from 0 through 72.
+        bottom: Optional bottom padding in PDF points, from 0 through 72.
+        left: Optional left padding in PDF points, from 0 through 72.
+    """
+
+    top: float
+    right: float
+    bottom: float
+    left: float
+
+
+class PdfStructuredTextTableStyle(TypedDict, total=False):
+    """Table presentation for Markdown and CSV conversion.
+
+    Attributes:
+        column_width_weights: Optional non-empty relative column-width weights;
+            every value must be greater than 0.
+        keep_header_with_first_row: Optional flag to keep the table header with
+            its first data row during pagination.
+        repeat_headers_on_overflow: Optional flag to repeat headers on
+            continuation pages.
+        show_borders: Optional flag to draw table-cell borders.
+        border_width: Optional border width in PDF points, from 0 through 12.
+        border_color_rgb: Optional RGB border color with channels from 0 through
+            255.
+        header_fill_color_rgb: Optional RGB header background color.
+        header_text_color_rgb: Optional RGB header text color.
+        row_fill_color_rgb: Optional RGB data-row background color.
+        alternate_row_fill_color_rgb: Optional RGB alternating-row background
+            color.
+        cell_padding: Optional per-side cell padding in PDF points.
+    """
+
+    column_width_weights: Sequence[float]
+    keep_header_with_first_row: bool
+    repeat_headers_on_overflow: bool
+    show_borders: bool
+    border_width: float
+    border_color_rgb: PdfRGBColor
+    header_fill_color_rgb: PdfRGBColor
+    header_text_color_rgb: PdfRGBColor
+    row_fill_color_rgb: PdfRGBColor
+    alternate_row_fill_color_rgb: PdfRGBColor
+    cell_padding: PdfStructuredTextCellPadding
+
+
+class PdfStructuredTextStyle(TypedDict, total=False):
+    """Typography shared by all structured document conversion helpers.
+
+    The ``PdfStructuredTextFontName`` type suggests the published
+    ``PdfStructuredTextKnownFont`` values while allowing other names installed
+    on the service. See the
+    [pdfRest Font List](https://pdfrest.com/documentation/fontlist/).
+
+    Attributes:
+        font: Optional non-empty body-text font name installed on the service.
+        heading_font: Optional non-empty installed heading font name.
+        code_font: Optional non-empty installed code/preformatted-text font name.
+        cjk_font: Optional non-empty installed Chinese, Japanese, or Korean font
+            name. This is a fallback, not a closed catalog.
+        fallback_fonts: Optional non-empty ordered list of installed fallback
+            font names. Availability depends on the service deployment.
+        text_size: Optional body-text size in PDF points, from 6 through 72.
+        text_color_rgb: Optional RGB body-text color with channels from 0
+            through 255.
+        heading_scale: Optional heading scale greater than 0 and at most 4.
+    """
+
+    font: PdfStructuredTextFontName
+    heading_font: PdfStructuredTextFontName
+    code_font: PdfStructuredTextFontName
+    cjk_font: PdfStructuredTextFontName
+    fallback_fonts: Sequence[PdfStructuredTextFontName]
+    text_size: float
+    text_color_rgb: PdfRGBColor
+    heading_scale: float
+
+
+class PdfStructuredTextCsvColumn(TypedDict, total=False):
+    """One CSV column presentation override.
+
+    Attributes:
+        index: Required zero-based CSV column index.
+        text_align: Optional ``left``, ``center``, or ``right`` alignment.
+        width_weight: Optional relative width weight greater than 0.
+    """
+
+    index: Required[int]
+    text_align: PdfStructuredTextTextAlignment
+    width_weight: float
+
+
+PdfStructuredTextImageSources: TypeAlias = Mapping[str, PdfRestFile]
+"""Markdown image-target mapping consumed by ``convert_markdown_to_pdf``."""
 
 PdfContentStructureType: TypeAlias = Literal[
     "P",

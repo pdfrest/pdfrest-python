@@ -23,6 +23,9 @@ supported interpreter matrix.
 
 - `examples/add_shapes/add_shapes_to_pdf_example.py` – add a styled rectangle
   and divider line to a PDF with accessibility tagging enabled.
+- `examples/convert_structured_documents/convert_structured_documents_to_pdf_example.py`
+  – convert Markdown, plain text, JSON, XML, and CSV documents to PDF with
+  format-specific options.
 - `examples/delete/delete_example.py` – demonstrate file deletion (sync + async
   variants).
 - `examples/extract_text/extract_pdf_text_example.py` – run `extract_pdf_text`

@@ -220,10 +220,14 @@
   customization (sync + async), validation failures, and multi-file guards. Add
   a shared validation suite when multiple endpoints rely on the same input rules
   (e.g., `tests/test_graphic_payload_validation.py`).
-- Do not import from private modules (names beginning with an underscore) in
-  production code. In tests, prefer public modules first; allow private-model
-  imports only when necessary to validate request serialization or mock
-  server-facing payload contracts that are not exposed publicly.
+- Production code may import private modules and symbols within its own package,
+  including `pdfrest.client` importing `pdfrest.models._internal`. Do not import
+  private modules or symbols from external packages; use their supported public
+  APIs. Another company-owned package is still an external dependency. Keep
+  package-owned internals outside public exports unless intentionally promoted
+  to a supported API. In tests, prefer public APIs; access package-owned
+  internals when needed to verify implementation behavior or request
+  serialization.
 
 ## Testing Guidelines
 
@@ -433,7 +437,16 @@
 
 ## Commit & Pull Request Guidelines
 
-- Follow the `area: summary` convention seen in `pdfassistant-chatbot` (e.g.,
+- This is a public repository. Keep source, tests, examples, documentation,
+  commit messages, PR descriptions, and review comments suitable for public
+  disclosure. Do not name or link private components, implementation classes,
+  repositories, infrastructure, internal hosts, or unrelated Jira work items.
+- Describe service limitations using observable API behavior. For blocked live
+  coverage, document the affected cases and the steps to re-enable them without
+  exposing private implementation details. Reference only the PR's primary Jira
+  work item unless the user explicitly authorizes another reference and confirms
+  it is suitable for public disclosure.
+- Follow the `area: summary` convention (e.g.,
   `client: Add document merge service`).
 - Name the commit scope after the primary file, directory, or domain object
   affected by the change, such as `AGENTS`, `pdfrest-client-api`, `client`,

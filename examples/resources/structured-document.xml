@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<service-summary quarter="Q3">
+  <availability-percent>99.98</availability-percent>
+  <priority>accessibility</priority>
+  <priority>document generation</priority>
+</service-summary>
