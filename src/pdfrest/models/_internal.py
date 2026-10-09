@@ -973,7 +973,10 @@ class _StructuredTextMargin(_StrictStructuredTextModel):
 
 
 class _StructuredTextPageSetup(_StrictStructuredTextModel):
-    size: PdfStructuredTextPageSize | None = None
+    size: Annotated[
+        PdfStructuredTextPageSize | None,
+        BeforeValidator(_strip_structured_string),
+    ] = None
     width: Annotated[float | None, Field(gt=0)] = None
     height: Annotated[float | None, Field(gt=0)] = None
     orientation: PdfStructuredTextPageOrientation | None = None

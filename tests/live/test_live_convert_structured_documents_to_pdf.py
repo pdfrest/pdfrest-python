@@ -22,6 +22,7 @@ from ..resources import get_test_resource_path
 
 NAMED_PAGE_SIZES = [
     pytest.param("Letter", id="letter"),
+    pytest.param(" \tLetter\n ", id="padded-letter"),
     pytest.param("Legal", id="legal"),
     pytest.param("Ledger", id="ledger"),
     pytest.param("A3", id="a3"),
@@ -176,11 +177,11 @@ def test_live_convert_plain_text_to_pdf_page_size(
         lambda client: client.convert_plain_text_to_pdf(
             source,
             page_setup={"size": size},
-            output=f"live-plain-text-page-size-{size.lower()}",
+            output=f"live-plain-text-page-size-{size.strip().lower()}",
         ),
     )
     _assert_structured_pdf(
-        response, source, f"live-plain-text-page-size-{size.lower()}"
+        response, source, f"live-plain-text-page-size-{size.strip().lower()}"
     )
 
 
@@ -449,11 +450,11 @@ async def test_live_async_convert_plain_text_to_pdf_page_size(
         lambda client: client.convert_plain_text_to_pdf(
             source,
             page_setup={"size": size},
-            output=f"live-plain-text-async-page-size-{size.lower()}",
+            output=f"live-plain-text-async-page-size-{size.strip().lower()}",
         ),
     )
     _assert_structured_pdf(
-        response, source, f"live-plain-text-async-page-size-{size.lower()}"
+        response, source, f"live-plain-text-async-page-size-{size.strip().lower()}"
     )
 
 

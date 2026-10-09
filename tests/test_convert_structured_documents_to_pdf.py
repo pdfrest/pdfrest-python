@@ -1376,6 +1376,11 @@ async def test_async_convert_markdown_to_pdf_preserves_alt_text(
 
 
 TRIMMED_TEXT_OPTIONS = [
+    pytest.param(
+        {"page_setup": {"size": " \tLetter\n "}},
+        {"page_setup": {"size": "Letter"}},
+        id="page-size",
+    ),
     pytest.param({"title": "  Report  "}, {"title": "Report"}, id="title"),
     pytest.param({"language": "  en-US  "}, {"language": "en-US"}, id="language"),
     *[
