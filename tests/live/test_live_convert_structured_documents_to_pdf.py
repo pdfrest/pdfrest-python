@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from pdfrest import AsyncPdfRestClient, PdfRestApiError, PdfRestClient
 from pdfrest.models import PdfRestFile, PdfRestFileBasedResponse
+from pdfrest.models._internal import ConvertCsvToPdfPayload, ConvertMarkdownToPdfPayload
 from pdfrest.types import (
     PdfStructuredTextCsvColumn,
     PdfStructuredTextDataPresentation,
@@ -45,11 +47,16 @@ def uploaded_structured_documents(
     resources = {
         "markdown": get_test_resource_path("structured-document.md"),
         "markdown_image": get_test_resource_path("structured-document-with-image.md"),
+        "markdown_table": get_test_resource_path("structured-document-table.md"),
+        "markdown_two_images": get_test_resource_path(
+            "structured-document-with-two-images.md"
+        ),
         "plain_text": get_test_resource_path("structured-document.txt"),
         "json": get_test_resource_path("structured-document.json"),
         "xml": get_test_resource_path("structured-document.xml"),
         "csv": get_test_resource_path("structured-document.csv"),
         "image": get_test_resource_path("test.png"),
+        "second_image": get_test_resource_path("test.jpg"),
     }
     with PdfRestClient(
         api_key=pdfrest_api_key,
@@ -610,3 +617,311 @@ async def test_live_async_convert_json_to_pdf_rejects_invalid_option(
                     "structured_text_options": {"data_presentation": "diorama"}
                 },
             )
+
+
+def _numeric_schema_fields(
+    node: dict[str, Any],
+    definitions: dict[str, Any],
+    path: tuple[str | int, ...] = (),
+) -> dict[tuple[str | int, ...], dict[str, Any]]:
+    """Read numeric constraints from payload schemas, including RGB channels."""
+    if "$ref" in node:
+        node = definitions[node["$ref"].rsplit("/", 1)[-1]]
+    if "anyOf" in node:
+        node = next(branch for branch in node["anyOf"] if branch.get("type") != "null")
+        return _numeric_schema_fields(node, definitions, path)
+    if node.get("type") in ("number", "integer"):
+        return {path: node}
+    fields: dict[tuple[str | int, ...], dict[str, Any]] = {}
+    for name, child in node.get("properties", {}).items():
+        fields.update(_numeric_schema_fields(child, definitions, (*path, name)))
+    if "items" in node:
+        fields.update(_numeric_schema_fields(node["items"], definitions, (*path, 0)))
+    for index, child in enumerate(node.get("prefixItems", [])):
+        fields.update(_numeric_schema_fields(child, definitions, (*path, index)))
+    return fields
+
+
+def _numeric_live_cases() -> tuple[list[Any], list[Any]]:
+    fields: dict[tuple[str | int, ...], dict[str, Any]] = {}
+    for model in (ConvertMarkdownToPdfPayload, ConvertCsvToPdfPayload):
+        schema = model.model_json_schema()
+        fields.update(
+            _numeric_schema_fields(
+                schema["properties"]["structured_text_options"], schema["$defs"]
+            )
+        )
+    accepted: list[Any] = []
+    rejected: list[Any] = []
+    for path, field in fields.items():
+        step = 1 if field["type"] == "integer" else 0.1
+        minimum = field["minimum"] if "minimum" in field else field["exclusiveMinimum"]
+        valid = [minimum + step]
+        invalid = [minimum - step]
+        if "minimum" in field:
+            valid.insert(0, minimum)
+        else:
+            valid.append(minimum + 1)
+            invalid.append(minimum)
+        if "maximum" in field:
+            valid.extend([field["maximum"] - step, field["maximum"]])
+            invalid.append(field["maximum"] + step)
+        label = "-".join(map(str, path))
+        for value in valid:
+            # The service requires usable page area beyond its positive bounds.
+            layout_rejection = (
+                path in (("page_setup", "width"), ("page_setup", "height"))
+                and value < 180
+            )
+            accepted.append(
+                pytest.param(path, value, layout_rejection, id=f"{label}-{value}")
+            )
+        rejected.extend(
+            pytest.param(path, value, id=f"{label}-{value}") for value in invalid
+        )
+    return accepted, rejected
+
+
+VALID_NUMERIC_LIVE_CASES, INVALID_NUMERIC_LIVE_CASES = _numeric_live_cases()
+
+
+def _numeric_live_options(
+    path: tuple[str | int, ...], value: float
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    """Change one numeric option while keeping related fields valid."""
+    options: dict[str, Any] = {}
+    if path[0] == "csv":
+        options["csv"] = {"columns": [{"index": 0}]}
+    if path in (("page_setup", "width"), ("page_setup", "height")):
+        options["page_setup"] = {"width": 612, "height": 792}
+    if isinstance(path[-1], int):
+        if path[-2] == "column_width_weights":
+            options["style"] = {"table": {"column_width_weights": [1, 1]}}
+        else:
+            options["style"] = {}
+            style = options["style"]
+            if path[1] == "table":
+                style["table"] = {}
+                style = style["table"]
+            style[path[-2]] = [128, 128, 128]
+    current: Any = options
+    for key in path[:-1]:
+        if isinstance(current, dict):
+            current = current.setdefault(key, {})
+        else:
+            current = current[key]
+    current[path[-1]] = value
+    arguments = dict(options)
+    if "csv" in arguments:
+        arguments.update(arguments.pop("csv"))
+    if "table" in arguments.get("style", {}):
+        arguments["style"] = dict(arguments["style"])
+        arguments["table_style"] = arguments["style"].pop("table")
+    source_name = "csv" if path[0] == "csv" else "markdown_table"
+    return source_name, options, arguments
+
+
+@pytest.mark.parametrize(
+    ("path", "value", "layout_rejection"), VALID_NUMERIC_LIVE_CASES
+)
+def test_live_structured_numeric_boundaries(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    path: tuple[str | int, ...],
+    value: float,
+    layout_rejection: bool,
+) -> None:
+    source_name, _, arguments = _numeric_live_options(path, value)
+    source = uploaded_structured_documents[source_name]
+    with PdfRestClient(
+        api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+    ) as client:
+        method = (
+            client.convert_csv_to_pdf
+            if source_name == "csv"
+            else client.convert_markdown_to_pdf
+        )
+        if layout_rejection:
+            with pytest.raises(
+                PdfRestApiError, match=r"(?i)issue processing|usable width"
+            ):
+                method(source, **arguments)
+        else:
+            response = method(source, **arguments, output="live-numeric-boundary")
+            _assert_structured_pdf(response, source, "live-numeric-boundary")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("path", "value", "layout_rejection"), VALID_NUMERIC_LIVE_CASES
+)
+async def test_live_async_structured_numeric_boundaries(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    path: tuple[str | int, ...],
+    value: float,
+    layout_rejection: bool,
+) -> None:
+    source_name, _, arguments = _numeric_live_options(path, value)
+    source = uploaded_structured_documents[source_name]
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+    ) as client:
+        method = (
+            client.convert_csv_to_pdf
+            if source_name == "csv"
+            else client.convert_markdown_to_pdf
+        )
+        if layout_rejection:
+            with pytest.raises(
+                PdfRestApiError, match=r"(?i)issue processing|usable width"
+            ):
+                await method(source, **arguments)
+        else:
+            response = await method(
+                source, **arguments, output="live-async-numeric-boundary"
+            )
+            _assert_structured_pdf(response, source, "live-async-numeric-boundary")
+
+
+@pytest.mark.parametrize(("path", "value"), INVALID_NUMERIC_LIVE_CASES)
+def test_live_structured_rejects_numeric_boundaries(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    path: tuple[str | int, ...],
+    value: float,
+) -> None:
+    source_name, options, _ = _numeric_live_options(path, value)
+    with (
+        PdfRestClient(
+            api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+        ) as client,
+        pytest.raises(PdfRestApiError, match=r"(?i)structured_text_options|invalid"),
+    ):
+        (
+            client.convert_csv_to_pdf
+            if source_name == "csv"
+            else client.convert_markdown_to_pdf
+        )(
+            uploaded_structured_documents[source_name],
+            extra_body={"structured_text_options": options},
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("path", "value"), INVALID_NUMERIC_LIVE_CASES)
+async def test_live_async_structured_rejects_numeric_boundaries(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    path: tuple[str | int, ...],
+    value: float,
+) -> None:
+    source_name, options, _ = _numeric_live_options(path, value)
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+    ) as client:
+        method = (
+            client.convert_csv_to_pdf
+            if source_name == "csv"
+            else client.convert_markdown_to_pdf
+        )
+        with pytest.raises(
+            PdfRestApiError, match=r"(?i)structured_text_options|invalid"
+        ):
+            await method(
+                uploaded_structured_documents[source_name],
+                extra_body={"structured_text_options": options},
+            )
+
+
+IMAGE_INDEX_BOUNDARIES = [
+    pytest.param(0, True, id="minimum"),
+    pytest.param(1, True, id="inside"),
+    pytest.param(-1, False, id="below-minimum"),
+    pytest.param(2, False, id="outside-uploaded-images"),
+]
+
+
+def _image_index_options(image_index: int) -> dict[str, Any]:
+    return {
+        "markdown": {
+            "image_sources": {
+                "company-logo": {"image_id_index": image_index},
+                "second-logo": {"image_id_index": 1 if image_index != 1 else 0},
+            },
+            "image_alt_text": {
+                "company-logo": "Company logo",
+                "second-logo": "Second logo",
+            },
+        }
+    }
+
+
+@pytest.mark.parametrize(("image_index", "valid"), IMAGE_INDEX_BOUNDARIES)
+def test_live_markdown_image_index_boundaries(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    image_index: int,
+    valid: bool,
+) -> None:
+    source = uploaded_structured_documents["markdown_two_images"]
+    image = uploaded_structured_documents["image"]
+    second_image = uploaded_structured_documents["second_image"]
+    # Wire indices are internal: extra_body is required to exercise their bounds.
+    extra_body = {
+        "image_ids": [str(image.id), str(second_image.id)],
+        "structured_text_options": _image_index_options(image_index),
+    }
+    with PdfRestClient(
+        api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+    ) as client:
+        if valid:
+            response = client.convert_markdown_to_pdf(
+                source, extra_body=extra_body, output="live-image-index"
+            )
+            _assert_structured_pdf(response, source, "live-image-index")
+            assert response.input_ids == [source.id, image.id, second_image.id]
+        else:
+            with pytest.raises(
+                PdfRestApiError,
+                match=r"(?i)image_id_index|image.ids|structured_text_options",
+            ):
+                client.convert_markdown_to_pdf(source, extra_body=extra_body)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("image_index", "valid"), IMAGE_INDEX_BOUNDARIES)
+async def test_live_async_markdown_image_index_boundaries(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_structured_documents: dict[str, PdfRestFile],
+    image_index: int,
+    valid: bool,
+) -> None:
+    source = uploaded_structured_documents["markdown_two_images"]
+    image = uploaded_structured_documents["image"]
+    second_image = uploaded_structured_documents["second_image"]
+    extra_body = {
+        "image_ids": [str(image.id), str(second_image.id)],
+        "structured_text_options": _image_index_options(image_index),
+    }
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key, base_url=pdfrest_live_base_url
+    ) as client:
+        if valid:
+            response = await client.convert_markdown_to_pdf(
+                source, extra_body=extra_body, output="live-async-image-index"
+            )
+            _assert_structured_pdf(response, source, "live-async-image-index")
+            assert response.input_ids == [source.id, image.id, second_image.id]
+        else:
+            with pytest.raises(
+                PdfRestApiError,
+                match=r"(?i)image_id_index|image.ids|structured_text_options",
+            ):
+                await client.convert_markdown_to_pdf(source, extra_body=extra_body)
