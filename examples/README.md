@@ -28,6 +28,9 @@ supported interpreter matrix.
   format-specific options.
 - `examples/convert_postscript_to_pdf/convert_postscript_with_job_options_example.py`
   – convert PostScript to PDF with an uploaded custom `.joboptions` profile.
+- `examples/convert_to_image/convert_password_protected_pdf_to_png_example.py` –
+  convert a password-protected PDF into PNG images by supplying its open
+  password.
 - `examples/delete/delete_example.py` – demonstrate file deletion (sync + async
   variants).
 - `examples/extract_text/extract_pdf_text_example.py` – run `extract_pdf_text`

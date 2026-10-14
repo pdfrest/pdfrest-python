@@ -158,6 +158,11 @@ formats.
   [convert_to_jpeg][pdfrest.PdfRestClient.convert_to_jpeg],
   [convert_to_tiff][pdfrest.PdfRestClient.convert_to_tiff]
 
+All PDF-to-image helpers accept `password` for opening an encrypted input PDF.
+See the
+[password-protected PDF example](https://github.com/pdfrest/pdfrest-python/blob/main/examples/convert_to_image/convert_password_protected_pdf_to_png_example.py)
+for the complete upload, protection, and conversion workflow.
+
 ## Forms data workflows
 
 Use this group when users need to transfer form field values in/out of PDFs.
