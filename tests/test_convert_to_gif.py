@@ -20,6 +20,8 @@ from .graphics_test_helpers import (
 )
 from .resources import get_test_resource_path
 
+_TEST_PASSWORD = "open-sesame"  # noqa: S105 - Test-only password.
+
 
 @pytest.mark.parametrize("color_model", ["rgb", "gray"])
 def test_convert_to_gif_success(
@@ -36,6 +38,7 @@ def test_convert_to_gif_success(
             "output_prefix": "converted",
             "page_range": ["1", "3-4"],
             "resolution": 500,
+            "password": _TEST_PASSWORD,
             "color_model": color_model,
             "smoothing": ["text", "image"],
         }
@@ -68,6 +71,7 @@ def test_convert_to_gif_success(
             output_prefix="converted",
             page_range=["1", "3-4"],
             resolution=500,
+            password=_TEST_PASSWORD,
             color_model=color_model,  # type: ignore[arg-type]
             smoothing=["text", "image"],
         )
@@ -228,6 +232,7 @@ async def test_async_convert_to_gif_success(
             "output_prefix": "async-output",
             "page_range": "1-2",
             "resolution": 400,
+            "password": _TEST_PASSWORD,
             "color_model": "gray",
             "smoothing": ["all"],
         }
@@ -263,6 +268,7 @@ async def test_async_convert_to_gif_success(
             output_prefix="async-output",
             page_range="1-2",
             resolution=400,
+            password=_TEST_PASSWORD,
             color_model="gray",
             smoothing=["all"],
         )

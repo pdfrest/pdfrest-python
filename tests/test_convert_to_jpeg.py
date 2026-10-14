@@ -20,6 +20,8 @@ from .graphics_test_helpers import (
 )
 from .resources import get_test_resource_path
 
+_TEST_PASSWORD = "open-sesame"  # noqa: S105 - Test-only password.
+
 
 @pytest.mark.parametrize("color_model", ["rgb", "cmyk", "gray"])
 def test_convert_to_jpeg_success(
@@ -36,6 +38,7 @@ def test_convert_to_jpeg_success(
             "output_prefix": "converted",
             "page_range": ["1", "2-3"],
             "resolution": 450,
+            "password": _TEST_PASSWORD,
             "color_model": color_model,
             "jpeg_quality": 90,
             "smoothing": ["text", "image"],
@@ -71,6 +74,7 @@ def test_convert_to_jpeg_success(
             output_prefix="converted",
             page_range=["1", "2-3"],
             resolution=450,
+            password=_TEST_PASSWORD,
             color_model=color_model,  # type: ignore[arg-type]
             smoothing=["text", "image"],
             jpeg_quality=90,
@@ -428,6 +432,7 @@ async def test_async_convert_to_jpeg_success(
             "output_prefix": "async-output",
             "page_range": "1-2",
             "resolution": 500,
+            "password": _TEST_PASSWORD,
             "color_model": color_model,
             "jpeg_quality": 85,
             "smoothing": ["all"],
@@ -466,6 +471,7 @@ async def test_async_convert_to_jpeg_success(
             output_prefix="async-output",
             page_range="1-2",
             resolution=500,
+            password=_TEST_PASSWORD,
             color_model=color_model,
             smoothing=["all"],
             jpeg_quality=85,
