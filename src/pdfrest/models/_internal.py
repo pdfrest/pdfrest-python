@@ -1648,6 +1648,10 @@ class BasePdfRestGraphicPayload(BaseModel, Generic[ColorModelT]):
         PlainSerializer(_serialize_page_ranges),
     ]
     resolution: Annotated[int, Field(ge=12, le=2400, default=300)]
+    password: Annotated[
+        str | None,
+        Field(min_length=1, default=None),
+    ] = None
     color_model: Annotated[ColorModelT, Field(default=...)]
     smoothing: Annotated[
         list[Literal["none", "all", "text", "line", "image"]],

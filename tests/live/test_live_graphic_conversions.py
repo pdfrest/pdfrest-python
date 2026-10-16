@@ -43,6 +43,8 @@ _EXPECTED_FILE_FORMATS: dict[str, tuple[str, str]] = {
     "jpeg": ("image/jpeg", ".jpg"),
     "tiff": ("image/tiff", ".tif"),
 }
+_GRAPHIC_PASSWORD = "graphic-password"  # noqa: S105 - Test-only password.
+_WRONG_GRAPHIC_PASSWORD = "wrong-password"  # noqa: S105 - Test-only password.
 
 
 def _enumerate_color_models(
@@ -143,6 +145,124 @@ def uploaded_20_page_pdf(
         base_url=pdfrest_live_base_url,
     ) as client:
         return client.files.create_from_paths([resource])[0]
+
+
+@pytest.fixture(scope="module")
+def encrypted_pdf_for_graphics(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+) -> PdfRestFile:
+    resource = get_test_resource_path("report.pdf")
+    with PdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        uploaded = client.files.create_from_paths([resource])[0]
+        return client.add_open_password(
+            uploaded,
+            new_open_password=_GRAPHIC_PASSWORD,
+            output="graphic-password-source",
+        ).output_file
+
+
+@pytest.mark.parametrize(
+    ("endpoint_label", "spec"),
+    PAYLOAD_MODELS.items(),
+    ids=list(PAYLOAD_MODELS),
+)
+def test_live_graphic_password(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    encrypted_pdf_for_graphics: PdfRestFile,
+    endpoint_label: str,
+    spec: _GraphicEndpointSpec,
+) -> None:
+    with PdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        client_method = getattr(client, spec.method_name)
+        response = client_method(
+            encrypted_pdf_for_graphics,
+            password=_GRAPHIC_PASSWORD,
+            output_prefix=f"live-password-{endpoint_label}",
+        )
+
+    expected_mime, expected_suffix = _expected_file_format(endpoint_label)
+    _assert_output_files(
+        response.output_files,
+        expected_mime=expected_mime,
+        expected_suffix=expected_suffix,
+    )
+    assert str(response.input_id) == str(encrypted_pdf_for_graphics.id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("endpoint_label", "spec"),
+    PAYLOAD_MODELS.items(),
+    ids=list(PAYLOAD_MODELS),
+)
+async def test_live_async_graphic_password(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    encrypted_pdf_for_graphics: PdfRestFile,
+    endpoint_label: str,
+    spec: _GraphicEndpointSpec,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        client_method = getattr(client, spec.method_name)
+        response = await client_method(
+            encrypted_pdf_for_graphics,
+            password=_GRAPHIC_PASSWORD,
+            output_prefix=f"live-async-password-{endpoint_label}",
+        )
+
+    expected_mime, expected_suffix = _expected_file_format(endpoint_label)
+    _assert_output_files(
+        response.output_files,
+        expected_mime=expected_mime,
+        expected_suffix=expected_suffix,
+    )
+    assert str(response.input_id) == str(encrypted_pdf_for_graphics.id)
+
+
+def test_live_graphic_invalid_password(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    encrypted_pdf_for_graphics: PdfRestFile,
+) -> None:
+    with (
+        PdfRestClient(
+            api_key=pdfrest_api_key,
+            base_url=pdfrest_live_base_url,
+        ) as client,
+        pytest.raises(PdfRestApiError, match=r"(?i)password"),
+    ):
+        client.convert_to_png(
+            encrypted_pdf_for_graphics,
+            password=_WRONG_GRAPHIC_PASSWORD,
+        )
+
+
+@pytest.mark.asyncio
+async def test_live_async_graphic_invalid_password(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    encrypted_pdf_for_graphics: PdfRestFile,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        with pytest.raises(PdfRestApiError, match=r"(?i)password"):
+            await client.convert_to_png(
+                encrypted_pdf_for_graphics,
+                password=_WRONG_GRAPHIC_PASSWORD,
+            )
 
 
 def test_live_convert_to_png_success(

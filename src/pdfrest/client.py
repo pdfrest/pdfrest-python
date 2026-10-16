@@ -5780,6 +5780,7 @@ class PdfRestClient(_SyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: PngColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         extra_query: Query | None = None,
@@ -5796,6 +5797,7 @@ class PdfRestClient(_SyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             extra_query: Additional query parameters merged into the request.
@@ -5820,6 +5822,8 @@ class PdfRestClient(_SyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return self._convert_to_graphic(
             endpoint="/png",
@@ -5838,6 +5842,7 @@ class PdfRestClient(_SyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: BmpColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         extra_query: Query | None = None,
@@ -5854,6 +5859,7 @@ class PdfRestClient(_SyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             extra_query: Additional query parameters merged into the request.
@@ -5878,6 +5884,8 @@ class PdfRestClient(_SyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return self._convert_to_graphic(
             endpoint="/bmp",
@@ -5896,6 +5904,7 @@ class PdfRestClient(_SyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: GifColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         extra_query: Query | None = None,
@@ -5912,6 +5921,7 @@ class PdfRestClient(_SyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             extra_query: Additional query parameters merged into the request.
@@ -5936,6 +5946,8 @@ class PdfRestClient(_SyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return self._convert_to_graphic(
             endpoint="/gif",
@@ -5954,6 +5966,7 @@ class PdfRestClient(_SyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: JpegColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         jpeg_quality: int = 75,
@@ -5971,6 +5984,7 @@ class PdfRestClient(_SyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             jpeg_quality: JPEG quality setting (1-100) controlling compression level and output fidelity.
@@ -5997,6 +6011,8 @@ class PdfRestClient(_SyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return self._convert_to_graphic(
             endpoint="/jpg",
@@ -6015,6 +6031,7 @@ class PdfRestClient(_SyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: TiffColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         extra_query: Query | None = None,
@@ -6031,6 +6048,7 @@ class PdfRestClient(_SyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             extra_query: Additional query parameters merged into the request.
@@ -6055,6 +6073,8 @@ class PdfRestClient(_SyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return self._convert_to_graphic(
             endpoint="/tif",
@@ -9108,6 +9128,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: PngColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         extra_query: Query | None = None,
@@ -9124,6 +9145,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             extra_query: Additional query parameters merged into the request.
@@ -9148,6 +9170,8 @@ class AsyncPdfRestClient(_AsyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return await self._convert_to_graphic(
             endpoint="/png",
@@ -9166,6 +9190,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: BmpColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         extra_query: Query | None = None,
@@ -9182,6 +9207,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             extra_query: Additional query parameters merged into the request.
@@ -9206,6 +9232,8 @@ class AsyncPdfRestClient(_AsyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return await self._convert_to_graphic(
             endpoint="/bmp",
@@ -9224,6 +9252,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: GifColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         extra_query: Query | None = None,
@@ -9240,6 +9269,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             extra_query: Additional query parameters merged into the request.
@@ -9264,6 +9294,8 @@ class AsyncPdfRestClient(_AsyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return await self._convert_to_graphic(
             endpoint="/gif",
@@ -9282,6 +9314,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: JpegColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         jpeg_quality: int = 75,
@@ -9299,6 +9332,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             jpeg_quality: JPEG quality setting (1-100) controlling compression level and output fidelity.
@@ -9325,6 +9359,8 @@ class AsyncPdfRestClient(_AsyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return await self._convert_to_graphic(
             endpoint="/jpg",
@@ -9343,6 +9379,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
         output_prefix: str | None = None,
         page_range: str | Sequence[str] | None = None,
         resolution: int = 300,
+        password: str | None = None,
         color_model: TiffColorModel = "rgb",
         smoothing: GraphicSmoothing | Sequence[GraphicSmoothing] = "none",
         extra_query: Query | None = None,
@@ -9359,6 +9396,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
             output_prefix: Filename prefix used for generated per-page/per-file image outputs.
             page_range: Page selection string/list for image conversion outputs.
             resolution: Raster output resolution in DPI for generated image files.
+            password: Password for opening an encrypted input PDF.
             color_model: Output image color model.
             smoothing: Graphic smoothing mode for image output endpoints.
             extra_query: Additional query parameters merged into the request.
@@ -9383,6 +9421,8 @@ class AsyncPdfRestClient(_AsyncApiClient):
             payload["output_prefix"] = output_prefix
         if page_range is not None:
             payload["page_range"] = page_range
+        if password is not None:
+            payload["password"] = password
 
         return await self._convert_to_graphic(
             endpoint="/tif",
