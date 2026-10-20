@@ -23,9 +23,6 @@ SCALE_NEAR_BOUNDARY = SCALE_EXCLUSIVE_MINIMUM + 0.0001
 class PostscriptLiveOptions(TypedDict, total=False):
     binary_output: bool
     scale: float
-    rotate: bool
-    shrink_to_fit: bool
-    print_annotations: bool
     output: str
 
 
@@ -41,24 +38,6 @@ POSTSCRIPT_OPTION_CASES = [
         "report_pdfrest_postscript",
         b"%%BoundingBox: 305 395 307 397",
         id="scale-near-exclusive-minimum",
-    ),
-    pytest.param(
-        PostscriptLiveOptions(rotate=True),
-        "report_pdfrest_postscript",
-        None,
-        id="rotation-enabled",
-    ),
-    pytest.param(
-        PostscriptLiveOptions(shrink_to_fit=True),
-        "report_pdfrest_postscript",
-        None,
-        id="shrink-to-fit-enabled",
-    ),
-    pytest.param(
-        PostscriptLiveOptions(print_annotations=False),
-        "report_pdfrest_postscript",
-        None,
-        id="annotations-disabled",
     ),
     pytest.param(
         PostscriptLiveOptions(output="live-postscript-custom"),
@@ -97,6 +76,27 @@ def uploaded_single_page_pdf_for_postscript(
         base_url=pdfrest_live_base_url,
     ) as client:
         return client.files.create_from_paths(resource)[0]
+
+
+@pytest.fixture(scope="module")
+def uploaded_annotated_pdf_for_postscript(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+) -> PdfRestFile:
+    resource = get_test_resource_path("printable-annotation.pdf")
+    with PdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        return client.files.create_from_paths(resource)[0]
+
+
+def _normalize_postscript_for_comparison(output_bytes: bytes) -> bytes:
+    return b"\n".join(
+        line
+        for line in output_bytes.splitlines()
+        if not line.startswith(b"%%CreationDate:")
+    )
 
 
 def _assert_postscript_response(
@@ -233,6 +233,111 @@ async def test_live_async_convert_pdf_to_postscript_page_range(
         3,
         2,
     )
+
+
+def test_live_convert_pdf_to_postscript_print_annotations(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_annotated_pdf_for_postscript: PdfRestFile,
+) -> None:
+    with PdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        with_annotations = client.convert_pdf_to_postscript(
+            uploaded_annotated_pdf_for_postscript,
+            binary_output=False,
+            print_annotations=True,
+        )
+        with_annotations_bytes = client.files.read_bytes(with_annotations.output_file)
+        without_annotations = client.convert_pdf_to_postscript(
+            uploaded_annotated_pdf_for_postscript,
+            binary_output=False,
+            print_annotations=False,
+        )
+        without_annotations_bytes = client.files.read_bytes(
+            without_annotations.output_file
+        )
+
+    assert str(with_annotations.input_id) == str(
+        uploaded_annotated_pdf_for_postscript.id
+    )
+    assert str(without_annotations.input_id) == str(
+        uploaded_annotated_pdf_for_postscript.id
+    )
+    assert with_annotations.warning is None
+    assert without_annotations.warning is None
+    _assert_postscript_response(
+        with_annotations.output_file,
+        with_annotations_bytes,
+        "printable-annotation_pdfrest_postscript",
+        3,
+        1,
+    )
+    _assert_postscript_response(
+        without_annotations.output_file,
+        without_annotations_bytes,
+        "printable-annotation_pdfrest_postscript",
+        3,
+        1,
+    )
+    assert _normalize_postscript_for_comparison(
+        with_annotations_bytes
+    ) != _normalize_postscript_for_comparison(without_annotations_bytes)
+
+
+@pytest.mark.asyncio
+async def test_live_async_convert_pdf_to_postscript_print_annotations(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_annotated_pdf_for_postscript: PdfRestFile,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        with_annotations = await client.convert_pdf_to_postscript(
+            uploaded_annotated_pdf_for_postscript,
+            binary_output=False,
+            print_annotations=True,
+        )
+        with_annotations_bytes = await client.files.read_bytes(
+            with_annotations.output_file
+        )
+        without_annotations = await client.convert_pdf_to_postscript(
+            uploaded_annotated_pdf_for_postscript,
+            binary_output=False,
+            print_annotations=False,
+        )
+        without_annotations_bytes = await client.files.read_bytes(
+            without_annotations.output_file
+        )
+
+    assert str(with_annotations.input_id) == str(
+        uploaded_annotated_pdf_for_postscript.id
+    )
+    assert str(without_annotations.input_id) == str(
+        uploaded_annotated_pdf_for_postscript.id
+    )
+    assert with_annotations.warning is None
+    assert without_annotations.warning is None
+    _assert_postscript_response(
+        with_annotations.output_file,
+        with_annotations_bytes,
+        "printable-annotation_pdfrest_postscript",
+        3,
+        1,
+    )
+    _assert_postscript_response(
+        without_annotations.output_file,
+        without_annotations_bytes,
+        "printable-annotation_pdfrest_postscript",
+        3,
+        1,
+    )
+    assert _normalize_postscript_for_comparison(
+        with_annotations_bytes
+    ) != _normalize_postscript_for_comparison(without_annotations_bytes)
 
 
 @pytest.mark.parametrize(
