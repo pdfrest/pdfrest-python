@@ -162,9 +162,33 @@ validation and turns them into the exact pdfRest wire contract.
 - Keep client methods thin: assemble a payload dict and call
   `_post_file_operation(..., payload_model=...)`. Do not duplicate payload
   validation in the client.
-- Use native annotated constraints, literals, and length bounds first. Use
-  `BeforeValidator` to adapt friendly input shapes, `AfterValidator` for MIME
-  and relational validation, and small field serializers for server formatting.
+- Before adding validation, search existing payload models, constrained type
+  aliases, validator factories, and serializers for the same semantic input. Map
+  the discovered API contract onto those existing compositions, comparing
+  accepted shapes, defaults, constraints, and wire serialization. Prefer reuse
+  or the smallest compatible extension; explain a concrete contract mismatch
+  before introducing a separate validator. Derive that comparison from OpenAPI
+  and any necessary fallback evidence, not from the proposed implementation or
+  tests written to match it.
+- Push validation into Pydantic's type system: compose reusable `Annotated`
+  aliases, unions, constrained tuples/lists, literals, and nested models. Let
+  native constraints enforce types, numeric bounds, cardinality, and lexical
+  patterns where possible. Avoid a broad `str` plus a custom regex/parser loop
+  that reimplements rules already captured by those types.
+- Follow the composition used by `AscendingPageRange` and especially
+  `_AscendingPageRangeTuple` in `src/pdfrest/models/_internal.py`: `PageNumber`
+  owns the positive bound; typed tuples/unions own valid endpoint combinations;
+  a short `BeforeValidator` parses the range string; an `AfterValidator` checks
+  only the relation between already-validated endpoints. Apply this pattern to
+  other compound inputs rather than copying all checks into one function.
+- Keep custom validators small and limited to gaps in native constraints:
+  `BeforeValidator` adapts input shape or normalizes verified syntax,
+  `AfterValidator` handles MIME or relational rules, and field serializers
+  handle wire formatting. For endpoint-specific additions such as an `all`
+  selection, compose a literal branch or narrow adapter around the shared types.
+  Preserve verified differences in case, whitespace, accepted syntax, and
+  serialization; do not broaden a shared validator or narrow the endpoint
+  contract merely to make reuse convenient.
 - Audit string options at every public input level, including nested `TypedDict`
   fields and list elements. When the server accepts a finite catalog, recover
   its complete, exact wire values from the selected OpenAPI schema and its
