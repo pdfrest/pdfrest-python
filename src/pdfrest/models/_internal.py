@@ -16,6 +16,8 @@ from pydantic import (
     HttpUrl,
     PlainSerializer,
     StringConstraints,
+    ValidatorFunctionWrapHandler,
+    WrapValidator,
     model_serializer,
     model_validator,
 )
@@ -214,7 +216,9 @@ def _normalize_pdfa_output_type(value: Any) -> Any:
     return PDFA_OUTPUT_TYPE_MAP.get(value.casefold(), value)
 
 
-def _serialize_page_ranges(value: list[str | int | tuple[str | int, ...]]) -> str:
+def _serialize_page_ranges(
+    value: Sequence[str | int | tuple[str | int, ...]],
+) -> str:
     def join_tuple(value: str | int | tuple[str | int, ...]) -> str:
         if isinstance(value, tuple):
             return "-".join(str(e) for e in value)
@@ -470,36 +474,47 @@ _AscendingPageRangeTuple = Annotated[
 AscendingPageRange = PageNumber | Literal["last"] | _AscendingPageRangeTuple
 
 
-_POSTSCRIPT_PAGE_BOUNDARY = r"(?:last|[1-9]\d*)"
-_POSTSCRIPT_PAGE_RANGE_PATTERN = re.compile(
-    rf"^\s*(?:all|{_POSTSCRIPT_PAGE_BOUNDARY}(?:\s*-\s*{_POSTSCRIPT_PAGE_BOUNDARY})?)"
-    rf"(?:\s*,\s*(?:{_POSTSCRIPT_PAGE_BOUNDARY}(?:\s*-\s*{_POSTSCRIPT_PAGE_BOUNDARY})?))*\s*$",
-    flags=re.IGNORECASE,
-)
+_PostscriptPageSelections = Annotated[
+    list[AscendingPageRange],
+    Field(min_length=1),
+]
+_PostscriptPageRangeValue = Literal["all"] | _PostscriptPageSelections
 
 
-def _validate_postscript_page_range(value: str) -> str:
-    if not _POSTSCRIPT_PAGE_RANGE_PATTERN.fullmatch(value):
-        msg = "An invalid page range was specified."
-        raise ValueError(msg)
+def _split_postscript_page_range(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
 
-    normalized = value.strip()
+    normalized = value.strip().casefold()
     if normalized.casefold() == "all":
         return normalized
+    return [selection.strip().casefold() for selection in normalized.split(",")]
 
-    for part in normalized.split(","):
-        start, separator, end = part.partition("-")
-        if not separator:
-            continue
-        start = start.strip()
-        end = end.strip()
-        if start.casefold() == "last" and end.casefold() != "last":
-            msg = "An invalid page range was specified."
-            raise ValueError(msg)
-        if end.casefold() != "last" and int(start) > int(end):
-            msg = "An invalid page range was specified."
-            raise ValueError(msg)
-    return normalized
+
+def _translate_postscript_page_range_error(
+    value: Any,
+    handler: ValidatorFunctionWrapHandler,
+) -> _PostscriptPageRangeValue:
+    try:
+        return cast(_PostscriptPageRangeValue, handler(value))
+    except ValueError as error:
+        error_type = "postscript_page_range"
+        msg = "An invalid page range was specified."
+        raise PydanticCustomError(error_type, msg) from error
+
+
+def _serialize_postscript_page_range(value: _PostscriptPageRangeValue) -> str:
+    if isinstance(value, str):
+        return value
+    return _serialize_page_ranges(value)
+
+
+PostscriptPageRange = Annotated[
+    _PostscriptPageRangeValue,
+    BeforeValidator(_split_postscript_page_range),
+    WrapValidator(_translate_postscript_page_range_error),
+    PlainSerializer(_serialize_postscript_page_range),
+]
 
 
 class PdfInfoPayload(BaseModel):
@@ -2195,9 +2210,8 @@ class ConvertPdfToPostscriptPayload(BaseModel):
     ]
     ps_level: Annotated[PostScriptLevel, Field(serialization_alias="ps_level")] = 3
     page_range: Annotated[
-        str,
+        PostscriptPageRange,
         Field(serialization_alias="page_range"),
-        AfterValidator(_validate_postscript_page_range),
     ] = "all"
     binary_output: Annotated[bool, Field(serialization_alias="binary_output")] = True
     scale: Annotated[

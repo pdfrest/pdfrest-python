@@ -79,7 +79,7 @@ def test_convert_pdf_to_postscript_payload_serialization(
     assert payload == {
         "id": str(source.id),
         "ps_level": ps_level,
-        "page_range": "1, 3-5, 12, 14-last",
+        "page_range": "1,3-5,12,14-last",
         "binary_output": False,
         "scale": 1.25,
         "rotate": True,
@@ -90,20 +90,24 @@ def test_convert_pdf_to_postscript_payload_serialization(
 
 
 @pytest.mark.parametrize(
-    "page_range",
+    ("page_range", "expected_page_range"),
     [
-        pytest.param("all", id="all"),
-        pytest.param("ALL", id="all-case-insensitive"),
-        pytest.param("1", id="single-page"),
-        pytest.param("last", id="last-page"),
-        pytest.param("1-3", id="ascending-range"),
-        pytest.param("6-last", id="range-to-last"),
-        pytest.param("1, 3-5, 12, 14-last", id="mixed-selection"),
-        pytest.param("all,1", id="all-with-selection"),
+        pytest.param("all", "all", id="all"),
+        pytest.param("ALL", "all", id="all-case-insensitive"),
+        pytest.param("1", "1", id="single-page"),
+        pytest.param("last", "last", id="last-page"),
+        pytest.param("1-3", "1-3", id="ascending-range"),
+        pytest.param("6-last", "6-last", id="range-to-last"),
+        pytest.param(
+            "1, 3-5, 12, 14-LAST",
+            "1,3-5,12,14-last",
+            id="mixed-selection",
+        ),
     ],
 )
 def test_convert_pdf_to_postscript_page_range_accepts_supported_syntax(
     page_range: str,
+    expected_page_range: str,
 ) -> None:
     source = make_pdf_file(PdfRestFileID.generate(2))
 
@@ -111,7 +115,9 @@ def test_convert_pdf_to_postscript_page_range_accepts_supported_syntax(
         {"file": source, "page_range": page_range}
     )
 
-    assert payload.page_range == page_range.strip()
+    assert payload.model_dump(mode="json", by_alias=True)["page_range"] == (
+        expected_page_range
+    )
 
 
 @pytest.mark.parametrize(
@@ -125,6 +131,7 @@ def test_convert_pdf_to_postscript_page_range_accepts_supported_syntax(
         pytest.param("3-1", id="descending"),
         pytest.param("even", id="unsupported-selector"),
         pytest.param("1--3", id="double-hyphen"),
+        pytest.param("all,1", id="all-with-selection"),
     ],
 )
 def test_convert_pdf_to_postscript_page_range_rejects_unsupported_syntax(
@@ -571,7 +578,7 @@ def _invoke_sync_validation_case(
     elif case == "ps-level":
         client.convert_pdf_to_postscript(source, ps_level=4)  # type: ignore[arg-type]
     elif case == "page-range":
-        client.convert_pdf_to_postscript(source, page_range="3-1")
+        client.convert_pdf_to_postscript(source, page_range="all,1")
     elif case == "scale":
         client.convert_pdf_to_postscript(source, scale=0)
     else:
@@ -595,7 +602,7 @@ async def _invoke_async_validation_case(
             ps_level=4,  # type: ignore[arg-type]
         )
     elif case == "page-range":
-        await client.convert_pdf_to_postscript(source, page_range="3-1")
+        await client.convert_pdf_to_postscript(source, page_range="all,1")
     elif case == "scale":
         await client.convert_pdf_to_postscript(source, scale=0)
     else:
