@@ -68,6 +68,7 @@ from .models import (
     PdfRestFileBasedResponse,
     PdfRestFileID,
     PdfRestInfoResponse,
+    PdfZugferdValidationResponse,
     SummarizePdfTextResponse,
     TranslatePdfTextFileResponse,
     TranslatePdfTextResponse,
@@ -128,6 +129,7 @@ from .models._internal import (
     PdfToPowerpointPayload,
     PdfToWordPayload,
     PdfUnrestrictPayload,
+    PdfValidateZugferdPayload,
     PdfXfaToAcroformsPayload,
     PdfZugferdPayload,
     PngPdfRestPayload,
@@ -4617,6 +4619,51 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def validate_zugferd_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfZugferdValidationResponse:
+        """Validate an existing ZUGFeRD or Factur-X PDF without modifying it.
+
+        Checks the embedded invoice XML, attachment relationship, package
+        metadata, supported profile, visible-content match, and independent
+        PDF/A-3 conformance.
+
+        Args:
+            file: Uploaded ZUGFeRD or Factur-X PDF resource to validate.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Typed validation status, PDF/A result, content-match status, and
+            any findings reported by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        validated_payload = PdfValidateZugferdPayload.model_validate({"file": file})
+        request = self.prepare_request(
+            "POST",
+            "/validated-zugferd",
+            json_body=validated_payload.model_dump(
+                mode="json", by_alias=True, exclude_none=True, exclude_unset=True
+            ),
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+        raw_payload = self._send_request(request)
+        return PdfZugferdValidationResponse.model_validate(raw_payload)
+
     def create_zugferd_pdf(
         self,
         invoice: PdfRestFile | Sequence[PdfRestFile],
@@ -8215,6 +8262,50 @@ class AsyncPdfRestClient(_AsyncApiClient):
             extra_body=extra_body,
             timeout=timeout,
         )
+
+    async def validate_zugferd_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfZugferdValidationResponse:
+        """Asynchronously validate an existing ZUGFeRD or Factur-X PDF.
+
+        This is the asynchronous variant of
+        [PdfRestClient.validate_zugferd_pdf][pdfrest.PdfRestClient.validate_zugferd_pdf].
+
+        Args:
+            file: Uploaded ZUGFeRD or Factur-X PDF resource to validate.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Typed validation status, PDF/A result, content-match status, and
+            any findings reported by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        validated_payload = PdfValidateZugferdPayload.model_validate({"file": file})
+        request = self.prepare_request(
+            "POST",
+            "/validated-zugferd",
+            json_body=validated_payload.model_dump(
+                mode="json", by_alias=True, exclude_none=True, exclude_unset=True
+            ),
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+        raw_payload = await self._send_request(request)
+        return PdfZugferdValidationResponse.model_validate(raw_payload)
 
     async def create_zugferd_pdf(
         self,
