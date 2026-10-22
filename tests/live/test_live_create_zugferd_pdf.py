@@ -5,7 +5,7 @@ from typing import TypedDict
 import pytest
 
 from pdfrest import AsyncPdfRestClient, PdfRestApiError, PdfRestClient
-from pdfrest.models import PdfRestFile
+from pdfrest.models import PdfRestFile, PdfZugferdValidationResponse
 from pdfrest.types import PdfZugferdRenderOptions
 
 from ..resources import get_test_resource_path
@@ -104,6 +104,17 @@ def _assert_zugferd_output(
     assert output_bytes.startswith(b"%PDF-")
 
 
+def _assert_zugferd_validation(
+    validation: PdfZugferdValidationResponse,
+    output: PdfRestFile,
+) -> None:
+    assert validation.status == "VALID"
+    assert validation.pdfa is True
+    assert validation.content_match_status in {"CONFIRMED", "DEMO_REDACTED"}
+    assert validation.input_id == output.id
+    assert f"/resource/{output.id}" in validation.input_url
+
+
 @pytest.mark.parametrize(("render_options", "output"), RENDER_OPTION_CASES)
 def test_live_create_zugferd_pdf_render_options(
     pdfrest_api_key: str,
@@ -125,10 +136,12 @@ def test_live_create_zugferd_pdf_render_options(
             output=output,
         )
         output_bytes = client.files.read_bytes(response.output_file)
+        validation = client.validate_zugferd_pdf(response.output_file)
 
     assert response.input_ids == [invoice.id, logo.id]
     assert response.warning is None
     _assert_zugferd_output(response.output_file, output_bytes, output)
+    _assert_zugferd_validation(validation, response.output_file)
 
 
 @pytest.mark.parametrize(("render_options", "output"), RENDER_OPTION_CASES)
@@ -153,10 +166,12 @@ async def test_live_async_create_zugferd_pdf_render_options(
             output=f"async-{output}",
         )
         output_bytes = await client.files.read_bytes(response.output_file)
+        validation = await client.validate_zugferd_pdf(response.output_file)
 
     assert response.input_ids == [invoice.id, logo.id]
     assert response.warning is None
     _assert_zugferd_output(response.output_file, output_bytes, f"async-{output}")
+    _assert_zugferd_validation(validation, response.output_file)
 
 
 def test_live_create_zugferd_pdf_regenerates_mismatched_pdf(
@@ -179,9 +194,11 @@ def test_live_create_zugferd_pdf_regenerates_mismatched_pdf(
             output="regenerated-zugferd",
         )
         output_bytes = client.files.read_bytes(response.output_file)
+        validation = client.validate_zugferd_pdf(response.output_file)
 
     assert response.input_ids == [invoice.id, pdf.id, logo.id]
     _assert_zugferd_output(response.output_file, output_bytes, "regenerated-zugferd")
+    _assert_zugferd_validation(validation, response.output_file)
 
 
 @pytest.mark.asyncio
@@ -205,11 +222,13 @@ async def test_live_async_create_zugferd_pdf_regenerates_mismatched_pdf(
             output="async-regenerated-zugferd",
         )
         output_bytes = await client.files.read_bytes(response.output_file)
+        validation = await client.validate_zugferd_pdf(response.output_file)
 
     assert response.input_ids == [invoice.id, pdf.id, logo.id]
     _assert_zugferd_output(
         response.output_file, output_bytes, "async-regenerated-zugferd"
     )
+    _assert_zugferd_validation(validation, response.output_file)
 
 
 def test_live_create_zugferd_pdf_rejects_invalid_render_option(
