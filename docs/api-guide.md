@@ -108,7 +108,8 @@ Use this group for password protection, permissions, signatures, and standards.
   [convert_to_pdfa][pdfrest.PdfRestClient.convert_to_pdfa],
   [convert_to_pdfx][pdfrest.PdfRestClient.convert_to_pdfx]
 - Electronic invoices:
-  [create_zugferd_pdf][pdfrest.PdfRestClient.create_zugferd_pdf]
+  [create_zugferd_pdf][pdfrest.PdfRestClient.create_zugferd_pdf],
+  [validate_zugferd_pdf][pdfrest.PdfRestClient.validate_zugferd_pdf]
 
 ## PDF cleanup and rendering normalization
 

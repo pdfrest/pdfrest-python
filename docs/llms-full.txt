@@ -160,6 +160,8 @@ to the API guide and API reference for exact method names and options.
 - Convert to standards formats (`PDF/A`, `PDF/X`)
 - Create validated ZUGFeRD or Factur-X PDF/A-3 invoices from uploaded CII XML
   with optional source-PDF, logo, and render controls
+- Validate existing ZUGFeRD or Factur-X PDFs for package, XML, visible-content,
+  and independent PDF/A-3 conformance
 
 ### Extraction and Analysis
 
