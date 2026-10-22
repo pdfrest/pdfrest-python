@@ -68,6 +68,7 @@ from .models import (
     PdfRestFileBasedResponse,
     PdfRestFileID,
     PdfRestInfoResponse,
+    PdfZugferdValidationResponse,
     SummarizePdfTextResponse,
     TranslatePdfTextFileResponse,
     TranslatePdfTextResponse,
@@ -128,7 +129,9 @@ from .models._internal import (
     PdfToPowerpointPayload,
     PdfToWordPayload,
     PdfUnrestrictPayload,
+    PdfValidateZugferdPayload,
     PdfXfaToAcroformsPayload,
+    PdfZugferdPayload,
     PngPdfRestPayload,
     SummarizePdfTextPayload,
     TiffPdfRestPayload,
@@ -178,6 +181,7 @@ from .types import (
     PdfStructuredTextTableStyle,
     PdfTextColor,
     PdfXType,
+    PdfZugferdRenderOptions,
     PngColorModel,
     PostScriptLevel,
     SummaryFormat,
@@ -4615,6 +4619,114 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def validate_zugferd_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfZugferdValidationResponse:
+        """Validate an existing ZUGFeRD or Factur-X PDF without modifying it.
+
+        Checks the embedded invoice XML, attachment relationship, package
+        metadata, supported profile, visible-content match, and independent
+        PDF/A-3 conformance.
+
+        Args:
+            file: Uploaded ZUGFeRD or Factur-X PDF resource to validate.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Typed validation status, PDF/A result, content-match status, and
+            any findings reported by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        validated_payload = PdfValidateZugferdPayload.model_validate({"file": file})
+        request = self.prepare_request(
+            "POST",
+            "/validated-zugferd",
+            json_body=validated_payload.model_dump(
+                mode="json", by_alias=True, exclude_none=True, exclude_unset=True
+            ),
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+        raw_payload = self._send_request(request)
+        return PdfZugferdValidationResponse.model_validate(raw_payload)
+
+    def create_zugferd_pdf(
+        self,
+        invoice: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        pdf: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        logo: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        render_options: PdfZugferdRenderOptions | None = None,
+        regenerate_pdf: bool = False,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Create a validated ZUGFeRD or Factur-X PDF/A-3 invoice.
+
+        Args:
+            invoice: Uploaded CII invoice XML resource.
+            pdf: Optional uploaded PDF to preserve when its content matches the
+                invoice XML.
+            logo: Optional uploaded PNG or JPEG logo for generated or
+                regenerated visual PDFs.
+            render_options: Optional appearance and regional-formatting options.
+            regenerate_pdf: Allow replacement of the supplied PDF when its
+                content cannot be confirmed against the invoice XML. Requires
+                ``pdf`` when true.
+            output: Output filename prefix used by pdfRest when creating the
+                ZUGFeRD PDF.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the generated PDF/A-3 file.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "invoice": invoice,
+            "regenerate_pdf": regenerate_pdf,
+        }
+        if pdf is not None:
+            payload["pdf"] = pdf
+        if logo is not None:
+            payload["logo"] = logo
+        if render_options is not None:
+            payload["render_options"] = render_options
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/zugferd-pdf",
+            payload=payload,
+            payload_model=PdfZugferdPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def blank_pdf(
         self,
         *,
@@ -8145,6 +8257,116 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/signed-pdf",
             payload=payload,
             payload_model=PdfSignPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def validate_zugferd_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfZugferdValidationResponse:
+        """Asynchronously validate an existing ZUGFeRD or Factur-X PDF.
+
+        This is the asynchronous variant of
+        [PdfRestClient.validate_zugferd_pdf][pdfrest.PdfRestClient.validate_zugferd_pdf].
+
+        Args:
+            file: Uploaded ZUGFeRD or Factur-X PDF resource to validate.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Typed validation status, PDF/A result, content-match status, and
+            any findings reported by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        validated_payload = PdfValidateZugferdPayload.model_validate({"file": file})
+        request = self.prepare_request(
+            "POST",
+            "/validated-zugferd",
+            json_body=validated_payload.model_dump(
+                mode="json", by_alias=True, exclude_none=True, exclude_unset=True
+            ),
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+        raw_payload = await self._send_request(request)
+        return PdfZugferdValidationResponse.model_validate(raw_payload)
+
+    async def create_zugferd_pdf(
+        self,
+        invoice: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        pdf: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        logo: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        render_options: PdfZugferdRenderOptions | None = None,
+        regenerate_pdf: bool = False,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronously create a ZUGFeRD or Factur-X PDF/A-3 invoice.
+
+        This is the asynchronous variant of
+        [PdfRestClient.create_zugferd_pdf][pdfrest.PdfRestClient.create_zugferd_pdf].
+
+        Args:
+            invoice: Uploaded CII invoice XML resource.
+            pdf: Optional uploaded PDF to preserve when its content matches the
+                invoice XML.
+            logo: Optional uploaded PNG or JPEG logo for generated or
+                regenerated visual PDFs.
+            render_options: Optional appearance and regional-formatting options.
+            regenerate_pdf: Allow replacement of the supplied PDF when its
+                content cannot be confirmed against the invoice XML. Requires
+                ``pdf`` when true.
+            output: Output filename prefix used by pdfRest when creating the
+                ZUGFeRD PDF.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the generated PDF/A-3 file.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "invoice": invoice,
+            "regenerate_pdf": regenerate_pdf,
+        }
+        if pdf is not None:
+            payload["pdf"] = pdf
+        if logo is not None:
+            payload["logo"] = logo
+        if render_options is not None:
+            payload["render_options"] = render_options
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/zugferd-pdf",
+            payload=payload,
+            payload_model=PdfZugferdPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
