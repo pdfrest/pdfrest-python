@@ -37,6 +37,8 @@ supported interpreter matrix.
   – asynchronously convert a PDF page and verify the PostScript output.
 - `examples/create_zugferd_pdf/create_zugferd_pdf_example.py` – create a
   formatted ZUGFeRD PDF/A-3 invoice from uploaded CII XML.
+- `examples/validate_zugferd_pdf/validate_zugferd_pdf_example.py` – create and
+  validate a ZUGFeRD PDF/A-3 invoice, including content-match findings.
 - `examples/delete/delete_example.py` – demonstrate file deletion (sync + async
   variants).
 - `examples/extract_text/extract_pdf_text_example.py` – run `extract_pdf_text`
