@@ -31,6 +31,10 @@ supported interpreter matrix.
 - `examples/convert_to_image/convert_password_protected_pdf_to_png_example.py` –
   convert a password-protected PDF into PNG images by supplying its open
   password.
+- `examples/convert_pdf_to_postscript/convert_pdf_to_postscript_example.py` –
+  synchronously convert selected PDF pages and verify the PostScript output.
+- `examples/convert_pdf_to_postscript/async_convert_pdf_to_postscript_example.py`
+  – asynchronously convert a PDF page and verify the PostScript output.
 - `examples/delete/delete_example.py` – demonstrate file deletion (sync + async
   variants).
 - `examples/extract_text/extract_pdf_text_example.py` – run `extract_pdf_text`

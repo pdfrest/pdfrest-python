@@ -153,6 +153,8 @@ to the API guide and API reference for exact method names and options.
 - Convert to Office/image/Markdown formats (for example Word, Excel,
   PowerPoint, PNG/JPEG/TIFF/GIF/BMP, Markdown)
 - Convert source assets to PDF (Office, HTML, URL, email, images, PostScript)
+- Convert PDF pages to PostScript with language-level, page-range, scaling,
+  rotation, fitting, binary-output, and annotation controls
 - Apply an uploaded `.joboptions` Distiller profile when converting PostScript
   or EPS with `convert_postscript_to_pdf`
 - Convert to standards formats (`PDF/A`, `PDF/X`)

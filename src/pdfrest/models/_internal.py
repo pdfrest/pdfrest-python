@@ -16,6 +16,8 @@ from pydantic import (
     HttpUrl,
     PlainSerializer,
     StringConstraints,
+    ValidatorFunctionWrapHandler,
+    WrapValidator,
     model_serializer,
     model_validator,
 )
@@ -47,6 +49,7 @@ from ..types import (
     PdfStructuredTextPageSize,
     PdfStructuredTextTextAlignment,
     PdfXType,
+    PostScriptLevel,
     SummaryFormat,
     SummaryOutputFormat,
     SummaryOutputType,
@@ -208,7 +211,9 @@ def _normalize_pdfa_output_type(value: Any) -> Any:
     return PDFA_OUTPUT_TYPE_MAP.get(value.casefold(), value)
 
 
-def _serialize_page_ranges(value: list[str | int | tuple[str | int, ...]]) -> str:
+def _serialize_page_ranges(
+    value: Sequence[str | int | tuple[str | int, ...]],
+) -> str:
     def join_tuple(value: str | int | tuple[str | int, ...]) -> str:
         if isinstance(value, tuple):
             return "-".join(str(e) for e in value)
@@ -462,6 +467,49 @@ _AscendingPageRangeTuple = Annotated[
 ]
 
 AscendingPageRange = PageNumber | Literal["last"] | _AscendingPageRangeTuple
+
+
+_PostscriptPageSelections = Annotated[
+    list[AscendingPageRange],
+    Field(min_length=1),
+]
+_PostscriptPageRangeValue = Literal["all"] | _PostscriptPageSelections
+
+
+def _split_postscript_page_range(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+
+    normalized = value.strip().casefold()
+    if normalized.casefold() == "all":
+        return normalized
+    return [selection.strip().casefold() for selection in normalized.split(",")]
+
+
+def _translate_postscript_page_range_error(
+    value: Any,
+    handler: ValidatorFunctionWrapHandler,
+) -> _PostscriptPageRangeValue:
+    try:
+        return cast(_PostscriptPageRangeValue, handler(value))
+    except ValueError as error:
+        error_type = "postscript_page_range"
+        msg = "An invalid page range was specified."
+        raise PydanticCustomError(error_type, msg) from error
+
+
+def _serialize_postscript_page_range(value: _PostscriptPageRangeValue) -> str:
+    if isinstance(value, str):
+        return value
+    return _serialize_page_ranges(value)
+
+
+PostscriptPageRange = Annotated[
+    _PostscriptPageRangeValue,
+    BeforeValidator(_split_postscript_page_range),
+    WrapValidator(_translate_postscript_page_range_error),
+    PlainSerializer(_serialize_postscript_page_range),
+]
 
 
 class PdfInfoPayload(BaseModel):
@@ -1848,6 +1896,45 @@ class PdfToPowerpointPayload(BaseModel):
         ),
         PlainSerializer(_serialize_as_first_file_id),
     ]
+    output: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+
+class ConvertPdfToPostscriptPayload(BaseModel):
+    """Adapt caller options into a pdfRest-ready PDF-to-PostScript payload."""
+
+    files: Annotated[
+        list[PdfRestFile],
+        Field(
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("file", "files"),
+            serialization_alias="id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    ps_level: Annotated[PostScriptLevel, Field(serialization_alias="ps_level")] = 3
+    page_range: Annotated[
+        PostscriptPageRange,
+        Field(serialization_alias="page_range"),
+    ] = "all"
+    binary_output: Annotated[bool, Field(serialization_alias="binary_output")] = True
+    scale: Annotated[
+        float,
+        Field(serialization_alias="scale", gt=0, allow_inf_nan=False),
+    ] = 1
+    rotate: Annotated[bool, Field(serialization_alias="rotate")] = False
+    shrink_to_fit: Annotated[bool, Field(serialization_alias="shrink_to_fit")] = False
+    print_annotations: Annotated[
+        bool, Field(serialization_alias="print_annotations")
+    ] = True
     output: Annotated[
         str | None,
         Field(serialization_alias="output", min_length=1, default=None),

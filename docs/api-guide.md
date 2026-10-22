@@ -147,6 +147,7 @@ formats.
   profile. See the
   [custom job options example](https://github.com/pdfrest/pdfrest-python/blob/main/examples/convert_postscript_to_pdf/convert_postscript_with_job_options_example.py).
 - Out of PDF:
+  [convert_pdf_to_postscript][pdfrest.PdfRestClient.convert_pdf_to_postscript],
   [convert_to_word][pdfrest.PdfRestClient.convert_to_word],
   [convert_to_excel][pdfrest.PdfRestClient.convert_to_excel],
   [convert_to_powerpoint][pdfrest.PdfRestClient.convert_to_powerpoint],

@@ -76,6 +76,7 @@ __all__ = (
     "PdfTextColor",
     "PdfXType",
     "PngColorModel",
+    "PostScriptLevel",
     "SummaryFormat",
     "SummaryOutputFormat",
     "SummaryOutputType",
@@ -850,6 +851,12 @@ PdfSignatureCredentials = PdfPfxCredentials | PdfPemCredentials
 PdfAType = Literal["PDF/A-1b", "PDF/A-2b", "PDF/A-2u", "PDF/A-3b", "PDF/A-3u"]
 #: PDF/X conformance targets accepted by ``convert_to_pdfx``.
 PdfXType = Literal["PDF/X-1a", "PDF/X-3", "PDF/X-4", "PDF/X-6"]
+PostScriptLevel: TypeAlias = Literal[2, 3]
+"""PostScript language level used by ``convert_pdf_to_postscript``.
+
+Level 2 supports older PostScript interpreters, while level 3 enables newer
+language features.
+"""
 #: Granularity modes for extracted full text payloads.
 ExtractTextGranularity = Literal["off", "by_page", "document"]
 #: Compression levels accepted by ``compress_pdf``.

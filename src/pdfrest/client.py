@@ -83,6 +83,7 @@ from .models._internal import (
     ConvertJsonToPdfPayload,
     ConvertMarkdownToPdfPayload,
     ConvertOfficeToPdfPayload,
+    ConvertPdfToPostscriptPayload,
     ConvertPlainTextToPdfPayload,
     ConvertPostscriptToPdfPayload,
     ConvertToMarkdownPayload,
@@ -178,6 +179,7 @@ from .types import (
     PdfTextColor,
     PdfXType,
     PngColorModel,
+    PostScriptLevel,
     SummaryFormat,
     SummaryOutputFormat,
     TiffColorModel,
@@ -3840,6 +3842,78 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def convert_pdf_to_postscript(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        ps_level: PostScriptLevel = 3,
+        page_range: str = "all",
+        binary_output: bool = True,
+        scale: float = 1,
+        rotate: bool = False,
+        shrink_to_fit: bool = False,
+        print_annotations: bool = True,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Convert a PDF to PostScript level 2 or level 3.
+
+        Produces print-oriented PostScript with page selection, scaling,
+        rotation, binary output, fitting, and annotation controls.
+
+        Args:
+            file: Uploaded PDF as a `PdfRestFile` object.
+            ps_level: PostScript language level for the generated file.
+            page_range: Pages to convert, such as `all`, `1`, `1,3-5`, or
+                `14-last`.
+            binary_output: Allows binary data in the PostScript stream when
+                supported.
+            scale: Page-content scale multiplier; must be greater than zero.
+            rotate: Enables page rotation in the generated PostScript.
+            shrink_to_fit: Shrinks page content when needed to fit the output
+                page.
+            print_annotations: Includes printable PDF annotations in the
+                output.
+            output: Output filename prefix used by pdfRest when creating the
+                PostScript file.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response returned by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "ps_level": ps_level,
+            "page_range": page_range,
+            "binary_output": binary_output,
+            "scale": scale,
+            "rotate": rotate,
+            "shrink_to_fit": shrink_to_fit,
+            "print_annotations": print_annotations,
+        }
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/postscript",
+            payload=payload,
+            payload_model=ConvertPdfToPostscriptPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def convert_xfa_to_acroforms(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -7298,6 +7372,78 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/powerpoint",
             payload=payload,
             payload_model=PdfToPowerpointPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def convert_pdf_to_postscript(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        ps_level: PostScriptLevel = 3,
+        page_range: str = "all",
+        binary_output: bool = True,
+        scale: float = 1,
+        rotate: bool = False,
+        shrink_to_fit: bool = False,
+        print_annotations: bool = True,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronously convert a PDF to PostScript level 2 or level 3.
+
+        This is the asynchronous variant of
+        [PdfRestClient.convert_pdf_to_postscript][pdfrest.PdfRestClient.convert_pdf_to_postscript].
+
+        Args:
+            file: Uploaded PDF as a `PdfRestFile` object.
+            ps_level: PostScript language level for the generated file.
+            page_range: Pages to convert, such as `all`, `1`, `1,3-5`, or
+                `14-last`.
+            binary_output: Allows binary data in the PostScript stream when
+                supported.
+            scale: Page-content scale multiplier; must be greater than zero.
+            rotate: Enables page rotation in the generated PostScript.
+            shrink_to_fit: Shrinks page content when needed to fit the output
+                page.
+            print_annotations: Includes printable PDF annotations in the
+                output.
+            output: Output filename prefix used by pdfRest when creating the
+                PostScript file.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response returned by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "ps_level": ps_level,
+            "page_range": page_range,
+            "binary_output": binary_output,
+            "scale": scale,
+            "rotate": rotate,
+            "shrink_to_fit": shrink_to_fit,
+            "print_annotations": print_annotations,
+        }
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/postscript",
+            payload=payload,
+            payload_model=ConvertPdfToPostscriptPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
