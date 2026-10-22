@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import uuid as _uuid
 from datetime import date
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, Any, ClassVar, Literal
 
 from pydantic import (
     AliasChoices,
@@ -45,6 +45,8 @@ __all__ = (
     "PdfRestFileBasedResponse",
     "PdfRestFileID",
     "PdfRestInfoResponse",
+    "PdfZugferdFinding",
+    "PdfZugferdValidationResponse",
     "SummarizePdfTextResponse",
     "TranslatePdfTextFileResponse",
     "TranslatePdfTextResponse",
@@ -366,6 +368,81 @@ class PdfRestFileBasedResponse(BaseModel):
         else:
             msg = "multiple output files were returned by the pdfRest operation"
         raise ValueError(msg)
+
+
+class PdfZugferdFinding(BaseModel):
+    """A finding reported while validating a ZUGFeRD or Factur-X PDF."""
+
+    code: str
+    """Stable finding code reported by the validation tooling."""
+
+    severity: Literal["INFO", "WARNING", "BLOCKING", "ERROR"]
+    """Severity assigned to the finding by the validation tooling."""
+
+    message: str
+    """Human-readable summary of the finding."""
+
+    field: str | None = None
+    """Invoice field associated with the finding, when available."""
+
+    status: str | None = None
+    """Status detail associated with the finding, when available."""
+
+    comparison_reason: Annotated[
+        str | None,
+        Field(
+            validation_alias=AliasChoices("comparison_reason", "comparisonReason"),
+            pattern=r"^[A-Z][A-Z0-9_]{0,63}$",
+        ),
+    ] = None
+    """Machine-readable reason for a visual-comparison result, when available."""
+
+    model_config = ConfigDict(extra="allow", frozen=True)
+
+
+class PdfZugferdValidationResponse(BaseModel):
+    """Result returned after validating a ZUGFeRD or Factur-X PDF."""
+
+    status: Literal["VALID", "INVALID"]
+    """Overall ZUGFeRD package, XML, business-rule, and PDF/A-3 result."""
+
+    pdfa: bool
+    """Whether the independent PDFChecker result confirms PDF/A-3 conformance."""
+
+    content_match_status: Annotated[
+        Literal[
+            "NOT_APPLICABLE",
+            "CONFIRMED",
+            "UNVERIFIED",
+            "FAILED",
+            "ERROR",
+            "DEMO_REDACTED",
+        ],
+        Field(
+            validation_alias=AliasChoices("content_match_status", "contentMatchStatus")
+        ),
+    ]
+    """Result of comparing visible PDF content with the embedded invoice XML."""
+
+    input_id: Annotated[
+        PdfRestFileID,
+        Field(validation_alias=AliasChoices("input_id", "inputId")),
+    ]
+    """Identifier of the validated PDF resource."""
+
+    input_url: Annotated[
+        str,
+        Field(validation_alias=AliasChoices("input_url", "inputUrl")),
+    ]
+    """Download URL for the validated PDF resource."""
+
+    findings: list[PdfZugferdFinding] | None = None
+    """Actionable validation findings and non-blocking warnings, when present."""
+
+    message: str | None = None
+    """Free-tier notice when detailed validation data has been redacted."""
+
+    model_config = ConfigDict(extra="allow", frozen=True)
 
 
 class PdfRestDeletionResponse(BaseModel):

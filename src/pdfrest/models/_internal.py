@@ -1833,6 +1833,22 @@ class PdfZugferdPayload(BaseModel):
         return self
 
 
+class PdfValidateZugferdPayload(BaseModel):
+    """Adapt an uploaded PDF resource into a ZUGFeRD validation request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    file: Annotated[
+        list[PdfRestFile],
+        Field(min_length=1, max_length=1, serialization_alias="id"),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+
+
 class PdfLiteralRedactionModel(BaseModel):
     type: Literal["literal"]
     value: Annotated[str, Field(min_length=1)]
