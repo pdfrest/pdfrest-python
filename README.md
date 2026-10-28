@@ -36,9 +36,15 @@ OCR, extraction, redaction, security, forms, and AI-ready document workflows.
 
 Use this PDF API for workflows like:
 
-- Convert and transform: PDF to Word/Excel/PowerPoint/images/Markdown, and
-  convert files to PDF/PDF-A/PDF-X.
+- Convert and transform: PDF to
+  Word/Excel/PowerPoint/PostScript/images/Markdown, and convert files to
+  PDF/PDF-A/PDF-X.
+- Generate PDFs: Markdown, plain text, JSON, XML, and CSV with page layout,
+  typography, and tagging controls.
+- Print workflows: PostScript/EPS to PDF with custom job options.
+- Render protected PDFs: PNG/BMP/GIF/JPEG/TIFF output using the open password.
 - Extract and analyze: OCR, text extraction, image extraction, PDF metadata.
+- Add content: overlay text, images, lines, and rectangles on PDF pages.
 - Secure and govern: redaction, encryption, permissions, signing, watermarking.
 - Compose and optimize: merge/split, compress, flatten, rasterize, color
   conversion.
@@ -58,16 +64,16 @@ pdfRest is especially useful for document AI systems:
 
 `pdfrest` supports Python `3.10+`.
 
-Recommended (`uv`):
+With `uv`:
 
 ```bash
 uv add pdfrest
 ```
 
-Fallback (`pip`):
+With `pip`:
 
 ```bash
-pip install pdfrest
+python -m pip install pdfrest
 ```
 
 ## Quick start
@@ -78,10 +84,16 @@ Set your API key in `PDFREST_API_KEY`:
 export PDFREST_API_KEY="your-api-key"
 ```
 
-Run your script:
+Run your script with `uv`:
 
 ```bash
 uv run python your_script.py
+```
+
+Or with Python:
+
+```bash
+python your_script.py
 ```
 
 Example (upload + extract text):
@@ -134,19 +146,17 @@ asyncio.run(main())
 - API toolkit overview: [pdfrest.com](https://pdfrest.com/)
 - Resources and insights:
   [pdfrest.com/resources](https://pdfrest.com/resources/)
-- Example scripts: `examples/README.md`
+- Example scripts:
+  [examples/README.md](https://github.com/pdfrest/pdfrest-python/blob/main/examples/README.md)
 - Python SDK docs: [python.pdfrest.com](https://python.pdfrest.com/)
 
 ## For contributors
 
-Contributor workflows live in `CONTRIBUTING.md`.
+See the
+[contributing guide](https://github.com/pdfrest/pdfrest-python/blob/main/CONTRIBUTING.md)
+for development setup, checks, and contribution workflows.
 
-Check tracked filenames for UTF-8 NFC normalization and collisions:
+## License
 
-```bash
-uv run --script .cit-quality/vendor/check_nfc_filenames.py
-```
-
-This read-only check also runs through pre-commit. It requires Python 3.11 or
-newer and reports offending filenames without renaming them. Copy identity and
-the review boundary are recorded in `.cit-quality/README.md`.
+This SDK is licensed under the
+[Apache License, Version 2.0](https://github.com/pdfrest/pdfrest-python/blob/main/LICENSE).

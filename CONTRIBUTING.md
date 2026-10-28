@@ -52,6 +52,17 @@ uv run ruff check .
 uv run basedpyright
 ```
 
+Check tracked filenames for UTF-8 NFC normalization and collisions:
+
+```bash
+uv run --script .cit-quality/vendor/check_nfc_filenames.py
+```
+
+This read-only check also runs through pre-commit. It requires Python 3.11 or
+newer and reports offending filenames without renaming them. Copy identity and
+the review boundary are recorded in
+[the quality tooling notes](https://github.com/pdfrest/pdfrest-python/blob/main/.cit-quality/README.md).
+
 ## Tests
 
 Quick local run:
