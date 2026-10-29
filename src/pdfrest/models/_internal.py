@@ -49,6 +49,11 @@ from ..types import (
     PdfStructuredTextPageSize,
     PdfStructuredTextTextAlignment,
     PdfXType,
+    PdfZugferdCurrencyDisplay,
+    PdfZugferdFontName,
+    PdfZugferdLabelLanguage,
+    PdfZugferdLocale,
+    PdfZugferdLogoCorner,
     PostScriptLevel,
     SummaryFormat,
     SummaryOutputFormat,
@@ -1543,6 +1548,305 @@ class ExtractImagesPayload(BaseModel):
 
 RgbChannel = Annotated[int, Field(ge=0, le=255)]
 CmykChannel = Annotated[int, Field(ge=0, le=100)]
+
+
+def _validate_zugferd_label_language(value: str) -> str:
+    trimmed = value.strip()
+    if not re.fullmatch(
+        r"[A-Za-z]{2,3}(?:-(?:[A-Za-z]{4}|[A-Za-z]{2}|\d{3}))?", trimmed
+    ) or not tag_is_valid(trimmed):
+        msg = "label_language must be a valid BCP 47 language tag."
+        raise ValueError(msg)
+    if trimmed.split("-", maxsplit=1)[0].casefold() not in {"en", "de", "fr"}:
+        msg = "label_language must use English, German, or French."
+        raise ValueError(msg)
+    return trimmed
+
+
+def _validate_zugferd_font(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    trimmed = value.strip()
+    if trimmed.casefold() == "webdings":
+        msg = "ZUGFeRD invoice fonts must be text-capable; Webdings is unsupported."
+        raise ValueError(msg)
+    return trimmed
+
+
+_ZugferdFontName = Annotated[
+    PdfZugferdFontName,
+    BeforeValidator(_validate_zugferd_font),
+    Field(min_length=1, max_length=200),
+]
+
+
+class _PdfZugferdRenderOptions(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    logo_corner: PdfZugferdLogoCorner | None = None
+    font: _ZugferdFontName | None = None
+    bold_font: _ZugferdFontName | None = None
+    text_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(
+            validation_alias="text_color",
+            serialization_alias="text_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="text_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
+    ] = None
+    text_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(
+            validation_alias="text_color",
+            serialization_alias="text_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="text_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
+    ] = None
+    muted_text_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(
+            validation_alias="muted_text_color",
+            serialization_alias="muted_text_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="muted_text_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
+    ] = None
+    muted_text_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(
+            validation_alias="muted_text_color",
+            serialization_alias="muted_text_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="muted_text_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
+    ] = None
+    accent_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(
+            validation_alias="accent_color",
+            serialization_alias="accent_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="accent_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
+    ] = None
+    accent_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(
+            validation_alias="accent_color",
+            serialization_alias="accent_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="accent_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
+    ] = None
+    border_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(
+            validation_alias="border_color",
+            serialization_alias="border_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="border_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
+    ] = None
+    border_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(
+            validation_alias="border_color",
+            serialization_alias="border_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="border_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
+    ] = None
+    table_header_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(
+            validation_alias="table_header_color",
+            serialization_alias="table_header_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="table_header_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
+    ] = None
+    table_header_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(
+            validation_alias="table_header_color",
+            serialization_alias="table_header_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="table_header_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
+    ] = None
+    table_alternate_color_rgb: Annotated[
+        tuple[RgbChannel, RgbChannel, RgbChannel] | None,
+        Field(
+            validation_alias="table_alternate_color",
+            serialization_alias="table_alternate_color_rgb",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="table_alternate_color",
+                expected_channel_count=3,
+                alternate_channel_count=4,
+            )
+        ),
+    ] = None
+    table_alternate_color_cmyk: Annotated[
+        tuple[CmykChannel, CmykChannel, CmykChannel, CmykChannel] | None,
+        Field(
+            validation_alias="table_alternate_color",
+            serialization_alias="table_alternate_color_cmyk",
+            default=None,
+        ),
+        BeforeValidator(
+            _route_color_by_channel_count(
+                color_name="table_alternate_color",
+                expected_channel_count=4,
+                alternate_channel_count=3,
+            )
+        ),
+    ] = None
+    footer_message: Annotated[str | None, Field(max_length=500)] = None
+    locale: PdfZugferdLocale | None = None
+    label_language: Annotated[
+        PdfZugferdLabelLanguage | None,
+        AfterValidator(_validate_zugferd_label_language),
+    ] = None
+    currency_display: PdfZugferdCurrencyDisplay | None = None
+    date_format: str | None = None
+    decimal_precision: Annotated[int | None, Field(ge=0, le=4)] = None
+
+
+class PdfZugferdPayload(BaseModel):
+    """Adapt uploaded invoice resources into a ZUGFeRD creation request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    invoice: Annotated[
+        list[PdfRestFile],
+        Field(min_length=1, max_length=1, serialization_alias="id"),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types(
+                "application/xml",
+                "text/xml",
+                error_msg="Invoice must be an XML file",
+            )
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    pdf: Annotated[
+        list[PdfRestFile] | None,
+        Field(min_length=1, max_length=1, serialization_alias="pdf_id"),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ] = None
+    logo: Annotated[
+        list[PdfRestFile] | None,
+        Field(min_length=1, max_length=1, serialization_alias="logo_id"),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types(
+                "image/png",
+                "image/jpeg",
+                error_msg="Logo must be a PNG or JPEG file",
+            )
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ] = None
+    render_options: _PdfZugferdRenderOptions | None = None
+    regenerate_pdf: bool = False
+    output: Annotated[
+        str | None,
+        Field(min_length=1),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+    @model_validator(mode="after")
+    def _validate_regeneration_source(self) -> PdfZugferdPayload:
+        if self.regenerate_pdf and self.pdf is None:
+            msg = "regenerate_pdf=True requires a PDF resource."
+            raise ValueError(msg)
+        return self
+
+
+class PdfValidateZugferdPayload(BaseModel):
+    """Adapt an uploaded PDF resource into a ZUGFeRD validation request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    file: Annotated[
+        list[PdfRestFile],
+        Field(min_length=1, max_length=1, serialization_alias="id"),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
 
 
 class PdfLiteralRedactionModel(BaseModel):
