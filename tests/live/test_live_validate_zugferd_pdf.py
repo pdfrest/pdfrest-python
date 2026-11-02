@@ -26,6 +26,19 @@ def generated_zugferd_pdf(
     return response.output_file
 
 
+@pytest.fixture(scope="module")
+def uploaded_non_zugferd_pdf(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+) -> PdfRestFile:
+    pdf_path = get_test_resource_path("report.pdf")
+    with PdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        return client.files.create_from_paths(pdf_path)[0]
+
+
 def _assert_valid_response(
     response: PdfZugferdValidationResponse,
     source: PdfRestFile,
@@ -38,6 +51,22 @@ def _assert_valid_response(
     if response.findings is not None:
         assert all(finding.code for finding in response.findings)
         assert all(finding.message for finding in response.findings)
+
+
+def _assert_invalid_response(
+    response: PdfZugferdValidationResponse,
+    source: PdfRestFile,
+) -> None:
+    assert response.status == "INVALID"
+    assert response.pdfa is False
+    assert response.input_id == source.id
+    assert f"/resource/{source.id}" in response.input_url
+    assert response.findings
+    assert all(finding.code for finding in response.findings)
+    assert all(finding.message for finding in response.findings)
+    assert any(
+        finding.severity in {"BLOCKING", "ERROR"} for finding in response.findings
+    )
 
 
 def test_live_validate_zugferd_pdf(
@@ -67,6 +96,35 @@ async def test_live_async_validate_zugferd_pdf(
         response = await client.validate_zugferd_pdf(generated_zugferd_pdf)
 
     _assert_valid_response(response, generated_zugferd_pdf)
+
+
+def test_live_validate_zugferd_pdf_reports_invalid_document(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_non_zugferd_pdf: PdfRestFile,
+) -> None:
+    with PdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        response = client.validate_zugferd_pdf(uploaded_non_zugferd_pdf)
+
+    _assert_invalid_response(response, uploaded_non_zugferd_pdf)
+
+
+@pytest.mark.asyncio
+async def test_live_async_validate_zugferd_pdf_reports_invalid_document(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_non_zugferd_pdf: PdfRestFile,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        response = await client.validate_zugferd_pdf(uploaded_non_zugferd_pdf)
+
+    _assert_invalid_response(response, uploaded_non_zugferd_pdf)
 
 
 def test_live_validate_zugferd_pdf_rejects_invalid_resource_id(

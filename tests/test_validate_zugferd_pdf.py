@@ -41,12 +41,13 @@ def _response_payload(
     file_id: PdfRestFileID,
     *,
     status: str = "VALID",
+    pdfa: bool = True,
     content_match_status: str = "CONFIRMED",
     severity: str = "WARNING",
 ) -> dict[str, Any]:
     return {
         "status": status,
-        "pdfa": True,
+        "pdfa": pdfa,
         "contentMatchStatus": content_match_status,
         "inputId": str(file_id),
         "inputUrl": f"https://api.pdfrest.com/resource/{file_id}?format=file",
@@ -61,6 +62,50 @@ def _response_payload(
             }
         ],
     }
+
+
+def _demo_response_payload(file_id: PdfRestFileID) -> dict[str, Any]:
+    return {
+        "status": "INVALID",
+        "pdfa": False,
+        "contentMatchStatus": "DEMO_REDACTED",
+        "inputId": str(file_id),
+        "inputUrl": f"https://api.pdfrest.com/resource/{file_id}?format=file",
+        "findings": [
+            {
+                "code": "PD******************",
+                "severity": "BLOCKING",
+                "message": "PD* ***** ***** **** *** ***** ****",
+                "field": "BT****",
+                "status": "MISMATCH",
+                "comparisonReason": "DEMO_REDACTED",
+            }
+        ],
+        "message": "Validation details are restricted.",
+    }
+
+
+def _assert_validation_response(
+    response: PdfZugferdValidationResponse,
+    source: PdfRestFile,
+    *,
+    status: str,
+    pdfa: bool,
+    content_match_status: str,
+    finding: PdfZugferdFinding,
+    message: str | None,
+) -> None:
+    assert isinstance(response, PdfZugferdValidationResponse)
+    assert response.status == status
+    assert response.pdfa is pdfa
+    assert response.content_match_status == content_match_status
+    assert response.input_id == source.id
+    assert (
+        response.input_url
+        == f"https://api.pdfrest.com/resource/{source.id}?format=file"
+    )
+    assert response.findings == [finding]
+    assert response.message == message
 
 
 def _assert_timeout(value: float | dict[str, float] | None, expected: float) -> None:
@@ -85,6 +130,7 @@ def test_validate_zugferd_payload_serializes_uploaded_pdf_id() -> None:
 @pytest.mark.parametrize(
     ("file", "error_match"),
     [
+        pytest.param([], "at least 1 item", id="empty"),
         pytest.param(
             _make_file("invoice.xml", "application/xml"),
             "Must be a PDF file",
@@ -179,26 +225,10 @@ def test_zugferd_validation_response_accepts_demo_redactions() -> None:
     file_id = PdfRestFileID.generate(prefix=2)
 
     response = PdfZugferdValidationResponse.model_validate(
-        {
-            "status": "INVALID",
-            "pdfa": True,
-            "contentMatchStatus": "DEMO_REDACTED",
-            "inputId": str(file_id),
-            "inputUrl": f"https://api.pdfrest.com/resource/{file_id}?format=file",
-            "findings": [
-                {
-                    "code": "PD******************",
-                    "severity": "BLOCKING",
-                    "message": "PD* ***** ***** **** *** ***** ****",
-                    "field": "BT****",
-                    "status": "MISMATCH",
-                    "comparisonReason": "DEMO_REDACTED",
-                }
-            ],
-            "message": "Validation details are restricted.",
-        }
+        _demo_response_payload(file_id)
     )
 
+    assert response.pdfa is False
     assert response.findings is not None
     assert response.findings[0].code == "PD******************"
     assert response.findings[0].comparison_reason == "DEMO_REDACTED"
@@ -228,13 +258,22 @@ def test_validate_zugferd_pdf_success_and_response_mapping() -> None:
     ) as client:
         response = client.validate_zugferd_pdf(pdf)
 
-    assert isinstance(response, PdfZugferdValidationResponse)
-    assert response.status == "VALID"
-    assert response.pdfa is True
-    assert response.content_match_status == "CONFIRMED"
-    assert response.input_id == pdf.id
-    assert response.findings is not None
-    assert response.findings[0].comparison_reason == "PARTIAL_REVERSE_VALIDATION"
+    _assert_validation_response(
+        response,
+        pdf,
+        status="VALID",
+        pdfa=True,
+        content_match_status="CONFIRMED",
+        finding=PdfZugferdFinding(
+            code="PDF_XML_FIELD_RESULT",
+            severity="WARNING",
+            message="Complete reverse validation is not available.",
+            field="visualConsistency",
+            status="UNVERIFIED",
+            comparison_reason="PARTIAL_REVERSE_VALIDATION",
+        ),
+        message=None,
+    )
 
 
 @pytest.mark.asyncio
@@ -246,21 +285,96 @@ async def test_async_validate_zugferd_pdf_success_and_response_mapping() -> None
         assert request.url.path == "/validated-zugferd"
         assert request.headers["Api-Key"] == ASYNC_API_KEY
         assert json.loads(request.content) == {"id": str(pdf.id)}
-        payload = _response_payload(
-            pdf.id, status="INVALID", content_match_status="DEMO_REDACTED"
-        )
-        payload["message"] = "Validation details are restricted."
-        return httpx.Response(200, json=payload)
+        return httpx.Response(200, json=_response_payload(pdf.id))
 
     async with AsyncPdfRestClient(
         api_key=ASYNC_API_KEY, transport=httpx.MockTransport(handler)
     ) as client:
         response = await client.validate_zugferd_pdf(pdf)
 
-    assert response.status == "INVALID"
-    assert response.content_match_status == "DEMO_REDACTED"
-    assert response.input_id == pdf.id
-    assert response.message == "Validation details are restricted."
+    _assert_validation_response(
+        response,
+        pdf,
+        status="VALID",
+        pdfa=True,
+        content_match_status="CONFIRMED",
+        finding=PdfZugferdFinding(
+            code="PDF_XML_FIELD_RESULT",
+            severity="WARNING",
+            message="Complete reverse validation is not available.",
+            field="visualConsistency",
+            status="UNVERIFIED",
+            comparison_reason="PARTIAL_REVERSE_VALIDATION",
+        ),
+        message=None,
+    )
+
+
+def test_validate_zugferd_pdf_invalid_demo_response_mapping() -> None:
+    pdf = _make_file("invalid-invoice.pdf", "application/pdf")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/validated-zugferd"
+        assert request.headers["Api-Key"] == VALID_API_KEY
+        assert json.loads(request.content) == {"id": str(pdf.id)}
+        return httpx.Response(200, json=_demo_response_payload(pdf.id))
+
+    with PdfRestClient(
+        api_key=VALID_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        response = client.validate_zugferd_pdf(pdf)
+
+    _assert_validation_response(
+        response,
+        pdf,
+        status="INVALID",
+        pdfa=False,
+        content_match_status="DEMO_REDACTED",
+        finding=PdfZugferdFinding(
+            code="PD******************",
+            severity="BLOCKING",
+            message="PD* ***** ***** **** *** ***** ****",
+            field="BT****",
+            status="MISMATCH",
+            comparison_reason="DEMO_REDACTED",
+        ),
+        message="Validation details are restricted.",
+    )
+
+
+@pytest.mark.asyncio
+async def test_async_validate_zugferd_pdf_invalid_demo_response_mapping() -> None:
+    pdf = _make_file("invalid-invoice.pdf", "application/pdf")
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/validated-zugferd"
+        assert request.headers["Api-Key"] == ASYNC_API_KEY
+        assert json.loads(request.content) == {"id": str(pdf.id)}
+        return httpx.Response(200, json=_demo_response_payload(pdf.id))
+
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        response = await client.validate_zugferd_pdf(pdf)
+
+    _assert_validation_response(
+        response,
+        pdf,
+        status="INVALID",
+        pdfa=False,
+        content_match_status="DEMO_REDACTED",
+        finding=PdfZugferdFinding(
+            code="PD******************",
+            severity="BLOCKING",
+            message="PD* ***** ***** **** *** ***** ****",
+            field="BT****",
+            status="MISMATCH",
+            comparison_reason="DEMO_REDACTED",
+        ),
+        message="Validation details are restricted.",
+    )
 
 
 def test_validate_zugferd_pdf_request_customization() -> None:
@@ -321,6 +435,7 @@ async def test_async_validate_zugferd_pdf_request_customization() -> None:
 @pytest.mark.parametrize(
     ("file", "error_match"),
     [
+        pytest.param([], "at least 1 item", id="empty"),
         pytest.param(
             _make_file("invoice.xml", "application/xml"),
             "Must be a PDF file",
@@ -354,6 +469,7 @@ def test_validate_zugferd_pdf_rejects_invalid_resource_before_transport(
 @pytest.mark.parametrize(
     ("file", "error_match"),
     [
+        pytest.param([], "at least 1 item", id="empty"),
         pytest.param(
             _make_file("invoice.xml", "application/xml"),
             "Must be a PDF file",
