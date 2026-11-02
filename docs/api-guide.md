@@ -108,7 +108,12 @@ Use this group for password protection, permissions, signatures, and standards.
   [convert_to_pdfa][pdfrest.PdfRestClient.convert_to_pdfa],
   [convert_to_pdfx][pdfrest.PdfRestClient.convert_to_pdfx]
 - Electronic invoices:
-  [create_zugferd_pdf][pdfrest.PdfRestClient.create_zugferd_pdf]
+  [convert_invoice_xml_to_zugferd_pdf][pdfrest.PdfRestClient.convert_invoice_xml_to_zugferd_pdf]
+  generates a PDF/A-3 invoice from CII XML, while
+  [convert_pdf_to_zugferd_pdf][pdfrest.PdfRestClient.convert_pdf_to_zugferd_pdf]
+  embeds CII XML into an existing matching PDF. The latter preserves the PDF by
+  default; set `allow_regeneration=True` only when the service may replace a
+  mismatched PDF with a newly rendered invoice.
 
 ## PDF cleanup and rendering normalization
 
@@ -132,7 +137,8 @@ Use this group when the user starts with non-PDF content or needs downstream
 formats.
 
 - Into PDF:
-  [create_zugferd_pdf][pdfrest.PdfRestClient.create_zugferd_pdf],
+  [convert_invoice_xml_to_zugferd_pdf][pdfrest.PdfRestClient.convert_invoice_xml_to_zugferd_pdf],
+  [convert_pdf_to_zugferd_pdf][pdfrest.PdfRestClient.convert_pdf_to_zugferd_pdf],
   [convert_office_to_pdf][pdfrest.PdfRestClient.convert_office_to_pdf],
   [convert_postscript_to_pdf][pdfrest.PdfRestClient.convert_postscript_to_pdf],
   [convert_email_to_pdf][pdfrest.PdfRestClient.convert_email_to_pdf],

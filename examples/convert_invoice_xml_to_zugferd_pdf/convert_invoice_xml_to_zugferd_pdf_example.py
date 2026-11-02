@@ -13,8 +13,8 @@ This sample demonstrates how to:
 
 Set ``PDFREST_API_KEY`` and optionally ``PDFREST_BASE_URL`` for a self-hosted
 deployment, then run from the repository root with
-``uv run examples/create_zugferd_pdf/create_zugferd_pdf_example.py``. The
-required XML input is included in the repository.
+``uv run examples/convert_invoice_xml_to_zugferd_pdf/convert_invoice_xml_to_zugferd_pdf_example.py``.
+The required XML input is included in the repository.
 """
 
 from __future__ import annotations
@@ -31,8 +31,8 @@ RESOURCE_DIRECTORY = Path(__file__).resolve().parents[1] / "resources"
 INVOICE_PATH = RESOURCE_DIRECTORY / "zugferd-minimum-invoice.xml"
 
 
-def create_zugferd_pdf() -> None:
-    """Upload invoice resources, create the PDF/A-3 invoice, and verify it."""
+def convert_invoice_xml_to_zugferd_pdf() -> None:
+    """Upload invoice XML, create the PDF/A-3 invoice, and verify it."""
     load_dotenv()
     base_url = os.getenv("PDFREST_BASE_URL")
     render_options = PdfZugferdRenderOptions(
@@ -49,7 +49,7 @@ def create_zugferd_pdf() -> None:
 
     with PdfRestClient(base_url=base_url) as client:
         invoice = client.files.create_from_paths(INVOICE_PATH)[0]
-        response = client.create_zugferd_pdf(
+        response = client.convert_invoice_xml_to_zugferd_pdf(
             invoice,
             render_options=render_options,
             output="zugferd-invoice",
@@ -69,4 +69,4 @@ def create_zugferd_pdf() -> None:
 
 
 if __name__ == "__main__":  # pragma: no cover - manual example
-    create_zugferd_pdf()
+    convert_invoice_xml_to_zugferd_pdf()
