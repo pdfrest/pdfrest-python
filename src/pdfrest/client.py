@@ -112,6 +112,7 @@ from .models._internal import (
     PdfImageWatermarkPayload,
     PdfImportFormDataPayload,
     PdfInfoPayload,
+    PdfInvoiceXmlToZugferdPayload,
     PdfLinearizePayload,
     PdfMergePayload,
     PdfRasterizePayload,
@@ -127,9 +128,9 @@ from .models._internal import (
     PdfToPdfxPayload,
     PdfToPowerpointPayload,
     PdfToWordPayload,
+    PdfToZugferdPayload,
     PdfUnrestrictPayload,
     PdfXfaToAcroformsPayload,
-    PdfZugferdPayload,
     PngPdfRestPayload,
     SummarizePdfTextPayload,
     TiffPdfRestPayload,
@@ -4617,32 +4618,24 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
-    def create_zugferd_pdf(
+    def convert_invoice_xml_to_zugferd_pdf(
         self,
         invoice: PdfRestFile | Sequence[PdfRestFile],
         *,
-        pdf: PdfRestFile | Sequence[PdfRestFile] | None = None,
         logo: PdfRestFile | Sequence[PdfRestFile] | None = None,
         render_options: PdfZugferdRenderOptions | None = None,
-        regenerate_pdf: bool = False,
         output: str | None = None,
         extra_query: Query | None = None,
         extra_headers: AnyMapping | None = None,
         extra_body: Body | None = None,
         timeout: TimeoutTypes | None = None,
     ) -> PdfRestFileBasedResponse:
-        """Create a validated ZUGFeRD or Factur-X PDF/A-3 invoice.
+        """Convert CII invoice XML into a ZUGFeRD or Factur-X PDF/A-3 invoice.
 
         Args:
             invoice: Uploaded CII invoice XML resource.
-            pdf: Optional uploaded PDF to preserve when its content matches the
-                invoice XML.
-            logo: Optional uploaded PNG or JPEG logo for generated or
-                regenerated visual PDFs.
+            logo: Optional uploaded PNG or JPEG logo for the generated PDF.
             render_options: Optional appearance and regional-formatting options.
-            regenerate_pdf: Allow replacement of the supplied PDF when its
-                content cannot be confirmed against the invoice XML. Requires
-                ``pdf`` when true.
             output: Output filename prefix used by pdfRest when creating the
                 ZUGFeRD PDF.
             extra_query: Additional query parameters merged into the request.
@@ -4657,12 +4650,7 @@ class PdfRestClient(_SyncApiClient):
             PdfRestError: If request execution fails at the client or API layer.
             ValidationError: If local payload validation fails before sending.
         """
-        payload: dict[str, Any] = {
-            "invoice": invoice,
-            "regenerate_pdf": regenerate_pdf,
-        }
-        if pdf is not None:
-            payload["pdf"] = pdf
+        payload: dict[str, Any] = {"invoice": invoice}
         if logo is not None:
             payload["logo"] = logo
         if render_options is not None:
@@ -4673,7 +4661,71 @@ class PdfRestClient(_SyncApiClient):
         return self._post_file_operation(
             endpoint="/zugferd-pdf",
             payload=payload,
-            payload_model=PdfZugferdPayload,
+            payload_model=PdfInvoiceXmlToZugferdPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    def convert_pdf_to_zugferd_pdf(
+        self,
+        pdf: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        invoice: PdfRestFile | Sequence[PdfRestFile],
+        allow_regeneration: bool = False,
+        logo: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        render_options: PdfZugferdRenderOptions | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Convert a supplied PDF and CII XML into a validated ZUGFeRD PDF.
+
+        The supplied PDF is preserved by default. When ``allow_regeneration``
+        is true, pdfRest may replace it if matching cannot be confirmed or
+        complete visual confirmation is required. Appearance options apply only
+        when a replacement is actually generated; use
+        ``convert_invoice_xml_to_zugferd_pdf`` to guarantee newly styled visuals.
+
+        Args:
+            pdf: Uploaded PDF whose visuals should be preserved when possible.
+            invoice: Uploaded CII invoice XML resource.
+            allow_regeneration: Permit pdfRest to replace the supplied PDF.
+            logo: Optional uploaded PNG or JPEG logo used only for replacement.
+            render_options: Optional appearance and regional-formatting options
+                used only for replacement.
+            output: Output filename prefix used by pdfRest.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the ZUGFeRD PDF/A-3 file.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "invoice": invoice,
+            "pdf": pdf,
+            "regenerate_pdf": allow_regeneration,
+        }
+        if logo is not None:
+            payload["logo"] = logo
+        if render_options is not None:
+            payload["render_options"] = render_options
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/zugferd-pdf",
+            payload=payload,
+            payload_model=PdfToZugferdPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
@@ -8216,35 +8268,27 @@ class AsyncPdfRestClient(_AsyncApiClient):
             timeout=timeout,
         )
 
-    async def create_zugferd_pdf(
+    async def convert_invoice_xml_to_zugferd_pdf(
         self,
         invoice: PdfRestFile | Sequence[PdfRestFile],
         *,
-        pdf: PdfRestFile | Sequence[PdfRestFile] | None = None,
         logo: PdfRestFile | Sequence[PdfRestFile] | None = None,
         render_options: PdfZugferdRenderOptions | None = None,
-        regenerate_pdf: bool = False,
         output: str | None = None,
         extra_query: Query | None = None,
         extra_headers: AnyMapping | None = None,
         extra_body: Body | None = None,
         timeout: TimeoutTypes | None = None,
     ) -> PdfRestFileBasedResponse:
-        """Asynchronously create a ZUGFeRD or Factur-X PDF/A-3 invoice.
+        """Convert CII XML into a ZUGFeRD PDF/A-3 invoice asynchronously.
 
         This is the asynchronous variant of
-        [PdfRestClient.create_zugferd_pdf][pdfrest.PdfRestClient.create_zugferd_pdf].
+        [PdfRestClient.convert_invoice_xml_to_zugferd_pdf][pdfrest.PdfRestClient.convert_invoice_xml_to_zugferd_pdf].
 
         Args:
             invoice: Uploaded CII invoice XML resource.
-            pdf: Optional uploaded PDF to preserve when its content matches the
-                invoice XML.
-            logo: Optional uploaded PNG or JPEG logo for generated or
-                regenerated visual PDFs.
+            logo: Optional uploaded PNG or JPEG logo for the generated PDF.
             render_options: Optional appearance and regional-formatting options.
-            regenerate_pdf: Allow replacement of the supplied PDF when its
-                content cannot be confirmed against the invoice XML. Requires
-                ``pdf`` when true.
             output: Output filename prefix used by pdfRest when creating the
                 ZUGFeRD PDF.
             extra_query: Additional query parameters merged into the request.
@@ -8259,12 +8303,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
             PdfRestError: If request execution fails at the client or API layer.
             ValidationError: If local payload validation fails before sending.
         """
-        payload: dict[str, Any] = {
-            "invoice": invoice,
-            "regenerate_pdf": regenerate_pdf,
-        }
-        if pdf is not None:
-            payload["pdf"] = pdf
+        payload: dict[str, Any] = {"invoice": invoice}
         if logo is not None:
             payload["logo"] = logo
         if render_options is not None:
@@ -8275,7 +8314,70 @@ class AsyncPdfRestClient(_AsyncApiClient):
         return await self._post_file_operation(
             endpoint="/zugferd-pdf",
             payload=payload,
-            payload_model=PdfZugferdPayload,
+            payload_model=PdfInvoiceXmlToZugferdPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def convert_pdf_to_zugferd_pdf(
+        self,
+        pdf: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        invoice: PdfRestFile | Sequence[PdfRestFile],
+        allow_regeneration: bool = False,
+        logo: PdfRestFile | Sequence[PdfRestFile] | None = None,
+        render_options: PdfZugferdRenderOptions | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Convert a supplied PDF and CII XML into a ZUGFeRD PDF asynchronously.
+
+        This is the asynchronous variant of
+        [PdfRestClient.convert_pdf_to_zugferd_pdf][pdfrest.PdfRestClient.convert_pdf_to_zugferd_pdf].
+        The supplied PDF is preserved by default. With regeneration permission,
+        appearance options apply only if pdfRest actually creates a replacement.
+
+        Args:
+            pdf: Uploaded PDF whose visuals should be preserved when possible.
+            invoice: Uploaded CII invoice XML resource.
+            allow_regeneration: Permit pdfRest to replace the supplied PDF.
+            logo: Optional uploaded PNG or JPEG logo used only for replacement.
+            render_options: Optional appearance and regional-formatting options
+                used only for replacement.
+            output: Output filename prefix used by pdfRest.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the ZUGFeRD PDF/A-3 file.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "invoice": invoice,
+            "pdf": pdf,
+            "regenerate_pdf": allow_regeneration,
+        }
+        if logo is not None:
+            payload["logo"] = logo
+        if render_options is not None:
+            payload["render_options"] = render_options
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/zugferd-pdf",
+            payload=payload,
+            payload_model=PdfToZugferdPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,

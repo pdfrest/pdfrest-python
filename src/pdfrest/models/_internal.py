@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import PurePath
 from typing import Annotated, Any, Generic, Literal, TypeVar, cast, get_args
 
-from langcodes import tag_is_valid
+from langcodes import standardize_tag, tag_is_valid
 from pydantic import (
     AfterValidator,
     AliasChoices,
@@ -50,8 +50,6 @@ from ..types import (
     PdfStructuredTextTextAlignment,
     PdfXType,
     PdfZugferdCurrencyDisplay,
-    PdfZugferdFontName,
-    PdfZugferdLabelLanguage,
     PdfZugferdLocale,
     PdfZugferdLogoCorner,
     PostScriptLevel,
@@ -334,36 +332,22 @@ _OUTPUT_LANGUAGE_ERROR = (
     "'es-419'). See documentation for recommended formats."
 )
 
+_SIMPLE_LANGUAGE_TAG_PATTERN = (
+    r"[A-Za-z]{2,3}(?:-(?:[A-Za-z]{4}|[A-Za-z]{2}|[0-9]{3}))?"
+)
+
+
+def _validate_simple_language_tag(value: str, *, error_msg: str) -> str:
+    trimmed = value.strip()
+    if not re.fullmatch(_SIMPLE_LANGUAGE_TAG_PATTERN, trimmed) or not tag_is_valid(
+        trimmed
+    ):
+        raise ValueError(error_msg)
+    return trimmed
+
 
 def _validate_output_language(value: str) -> str:
-    if not value:
-        raise ValueError(_OUTPUT_LANGUAGE_ERROR)
-
-    trimmed = value.strip()
-    if not trimmed:
-        raise ValueError(_OUTPUT_LANGUAGE_ERROR)
-
-    segments = trimmed.split("-")
-    if len(segments) > 2:
-        raise ValueError(_OUTPUT_LANGUAGE_ERROR)
-
-    language = segments[0]
-    if not re.fullmatch(r"[A-Za-z]{2,3}", language):
-        raise ValueError(_OUTPUT_LANGUAGE_ERROR)
-
-    if len(segments) == 2:
-        subtag = segments[1]
-        if not (
-            re.fullmatch(r"[A-Za-z]{4}", subtag)
-            or re.fullmatch(r"[A-Za-z]{2}", subtag)
-            or re.fullmatch(r"[0-9]{3}", subtag)
-        ):
-            raise ValueError(_OUTPUT_LANGUAGE_ERROR)
-
-    if not tag_is_valid(trimmed):
-        raise ValueError(_OUTPUT_LANGUAGE_ERROR)
-
-    return trimmed
+    return _validate_simple_language_tag(value, error_msg=_OUTPUT_LANGUAGE_ERROR)
 
 
 _PAGE_MARGIN_REGEX = r"^(?:\d+(?:\.\d+)?)(?:mm|in)$"
@@ -1550,33 +1534,38 @@ RgbChannel = Annotated[int, Field(ge=0, le=255)]
 CmykChannel = Annotated[int, Field(ge=0, le=100)]
 
 
-def _validate_zugferd_label_language(value: str) -> str:
-    trimmed = value.strip()
-    if not re.fullmatch(
-        r"[A-Za-z]{2,3}(?:-(?:[A-Za-z]{4}|[A-Za-z]{2}|\d{3}))?", trimmed
-    ) or not tag_is_valid(trimmed):
+def _canonicalize_zugferd_label_language(value: str) -> str:
+    if not tag_is_valid(value):
         msg = "label_language must be a valid BCP 47 language tag."
         raise ValueError(msg)
-    if trimmed.split("-", maxsplit=1)[0].casefold() not in {"en", "de", "fr"}:
+    primary_language = standardize_tag(value).split("-", maxsplit=1)[0].casefold()
+    if primary_language not in {"en", "de", "fr"}:
         msg = "label_language must use English, German, or French."
         raise ValueError(msg)
-    return trimmed
+    return primary_language
 
 
-def _validate_zugferd_font(value: Any) -> Any:
-    if not isinstance(value, str):
-        return value
-    trimmed = value.strip()
-    if trimmed.casefold() == "webdings":
+def _validate_zugferd_font(value: str) -> str:
+    if value.casefold() == "webdings":
         msg = "ZUGFeRD invoice fonts must be text-capable; Webdings is unsupported."
         raise ValueError(msg)
-    return trimmed
+    return value
 
 
 _ZugferdFontName = Annotated[
-    PdfZugferdFontName,
-    BeforeValidator(_validate_zugferd_font),
-    Field(min_length=1, max_length=200),
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    AfterValidator(_validate_zugferd_font),
+]
+_ZugferdLabelLanguage = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=2,
+        max_length=8,
+        pattern=rf"^{_SIMPLE_LANGUAGE_TAG_PATTERN}$",
+    ),
+    AfterValidator(_canonicalize_zugferd_label_language),
 ]
 
 
@@ -1768,67 +1757,93 @@ class _PdfZugferdRenderOptions(BaseModel):
     ] = None
     footer_message: Annotated[str | None, Field(max_length=500)] = None
     locale: PdfZugferdLocale | None = None
-    label_language: Annotated[
-        PdfZugferdLabelLanguage | None,
-        AfterValidator(_validate_zugferd_label_language),
-    ] = None
+    label_language: _ZugferdLabelLanguage = None  # pyright: ignore[reportAssignmentType]
     currency_display: PdfZugferdCurrencyDisplay | None = None
     date_format: str | None = None
     decimal_precision: Annotated[int | None, Field(ge=0, le=4)] = None
 
 
-class PdfZugferdPayload(BaseModel):
-    """Adapt uploaded invoice resources into a ZUGFeRD creation request."""
+_ZugferdInvoiceResource = Annotated[
+    list[PdfRestFile],
+    Field(min_length=1, max_length=1, serialization_alias="id"),
+    BeforeValidator(_ensure_list),
+    AfterValidator(
+        _allowed_mime_types(
+            "application/xml",
+            "text/xml",
+            error_msg="Invoice must be an XML file",
+        )
+    ),
+    PlainSerializer(_serialize_as_first_file_id),
+]
+_ZugferdPdfResource = Annotated[
+    list[PdfRestFile],
+    Field(min_length=1, max_length=1, serialization_alias="pdf_id"),
+    BeforeValidator(_ensure_list),
+    AfterValidator(
+        _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+    ),
+    PlainSerializer(_serialize_as_first_file_id),
+]
+_ZugferdLogoFiles = Annotated[
+    list[PdfRestFile],
+    Field(min_length=1, max_length=1),
+    BeforeValidator(_ensure_list),
+    AfterValidator(
+        _allowed_mime_types(
+            "image/png",
+            "image/jpeg",
+            error_msg="Logo must be a PNG or JPEG file",
+        )
+    ),
+]
+_ZugferdOutput = Annotated[
+    str,
+    Field(min_length=1),
+    AfterValidator(_validate_output_prefix),
+]
 
+
+class _BasePdfZugferdPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    invoice: Annotated[
-        list[PdfRestFile],
-        Field(min_length=1, max_length=1, serialization_alias="id"),
-        BeforeValidator(_ensure_list),
-        AfterValidator(
-            _allowed_mime_types(
-                "application/xml",
-                "text/xml",
-                error_msg="Invoice must be an XML file",
-            )
-        ),
-        PlainSerializer(_serialize_as_first_file_id),
-    ]
-    pdf: Annotated[
-        list[PdfRestFile] | None,
-        Field(min_length=1, max_length=1, serialization_alias="pdf_id"),
-        BeforeValidator(_ensure_list),
-        AfterValidator(
-            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
-        ),
+    invoice: _ZugferdInvoiceResource
+
+
+class PdfInvoiceXmlToZugferdPayload(_BasePdfZugferdPayload):
+    """Adapt uploaded invoice XML into a generated ZUGFeRD PDF request."""
+
+    logo: Annotated[
+        _ZugferdLogoFiles | None,
+        Field(serialization_alias="logo_id"),
         PlainSerializer(_serialize_as_first_file_id),
     ] = None
+    render_options: _PdfZugferdRenderOptions | None = None
+    output: _ZugferdOutput | None = None
+
+
+class PdfToZugferdPayload(_BasePdfZugferdPayload):
+    """Adapt uploaded PDF and invoice resources into a ZUGFeRD request."""
+
+    pdf: _ZugferdPdfResource
     logo: Annotated[
-        list[PdfRestFile] | None,
-        Field(min_length=1, max_length=1, serialization_alias="logo_id"),
-        BeforeValidator(_ensure_list),
-        AfterValidator(
-            _allowed_mime_types(
-                "image/png",
-                "image/jpeg",
-                error_msg="Logo must be a PNG or JPEG file",
-            )
-        ),
+        _ZugferdLogoFiles | None,
+        Field(serialization_alias="logo_id"),
         PlainSerializer(_serialize_as_first_file_id),
     ] = None
     render_options: _PdfZugferdRenderOptions | None = None
     regenerate_pdf: bool = False
-    output: Annotated[
-        str | None,
-        Field(min_length=1),
-        AfterValidator(_validate_output_prefix),
-    ] = None
+    output: _ZugferdOutput | None = None
 
     @model_validator(mode="after")
-    def _validate_regeneration_source(self) -> PdfZugferdPayload:
-        if self.regenerate_pdf and self.pdf is None:
-            msg = "regenerate_pdf=True requires a PDF resource."
+    def _validate_regeneration_options(self) -> PdfToZugferdPayload:
+        if not self.regenerate_pdf and (
+            self.logo is not None or self.render_options is not None
+        ):
+            msg = (
+                "logo and render_options require allow_regeneration=True because "
+                "they apply only when pdfRest replaces the supplied PDF."
+            )
             raise ValueError(msg)
         return self
 
