@@ -18,6 +18,7 @@ from pdfrest.models._internal import (
     ConvertXmlToPdfPayload,
 )
 from pdfrest.types import (
+    PdfKnownTextFont,
     PdfStructuredTextFontName,
     PdfStructuredTextKnownFont,
     PdfStructuredTextPageSetup,
@@ -44,7 +45,7 @@ NAMED_PAGE_SIZES = [
 ]
 KNOWN_FONTS = [
     pytest.param(value, id=value.replace(" ", "-"))
-    for value in get_args(PdfStructuredTextKnownFont)
+    for value in (*get_args(PdfKnownTextFont), "webdings")
 ]
 
 CSV_DELIMITERS = [

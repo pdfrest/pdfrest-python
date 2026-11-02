@@ -42,6 +42,7 @@ __all__ = (
     "PdfConversionLocale",
     "PdfCustomPageSize",
     "PdfInfoQuery",
+    "PdfKnownTextFont",
     "PdfMergeInput",
     "PdfMergeSource",
     "PdfPageOrientation",
@@ -75,6 +76,13 @@ __all__ = (
     "PdfStructuredTextTextAlignment",
     "PdfTextColor",
     "PdfXType",
+    "PdfZugferdCurrencyDisplay",
+    "PdfZugferdFontName",
+    "PdfZugferdKnownFont",
+    "PdfZugferdLabelLanguage",
+    "PdfZugferdLocale",
+    "PdfZugferdLogoCorner",
+    "PdfZugferdRenderOptions",
     "PngColorModel",
     "PostScriptLevel",
     "SummaryFormat",
@@ -159,44 +167,55 @@ PdfRGBColor = tuple[int, int, int]
 PdfColor = PdfRGBColor | PdfCMYKColor
 PdfTextColor = PdfColor
 
-PdfStructuredTextDataPresentation: TypeAlias = Literal["source", "hierarchy"]
-"""JSON/XML presentation accepted by structured document conversion helpers.
-
-Accepted values:
-
-- `source`: Preserve JSON or XML syntax and indentation.
-- `hierarchy`: Render JSON or XML as a readable hierarchy.
-"""
-
-PdfStructuredTextPageOrientation: TypeAlias = Literal["auto", "portrait", "landscape"]
-"""Page orientation accepted by structured document conversion helpers.
-
-Accepted values:
-
-- `auto`: Let the converter choose an orientation appropriate for the content.
-- `portrait`: Use portrait page orientation.
-- `landscape`: Use landscape page orientation.
-"""
-
-PdfStructuredTextPageSize: TypeAlias = Literal[
-    "Letter", "Legal", "Ledger", "A3", "A4", "A5", "Tabloid"
+PdfZugferdLogoCorner: TypeAlias = Literal[
+    "top-left", "top-right", "bottom-left", "bottom-right"
 ]
-"""Named page size for structured document conversion.
-
-For a custom size, use ``PdfStructuredTextPageSetup.width`` and ``height``.
+"""Logo placement used while rendering a ZUGFeRD invoice.
 
 Accepted values:
 
-- `Letter`: US letter paper, 612 by 792 PDF points.
-- `Legal`: US legal paper, 612 by 1008 PDF points.
-- `Ledger`: Ledger paper, 1224 by 792 PDF points.
-- `A3`: ISO A3 paper, 842 by 1191 PDF points.
-- `A4`: ISO A4 paper, 595 by 842 PDF points.
-- `A5`: ISO A5 paper, 420 by 595 PDF points.
-- `Tabloid`: Tabloid paper, 792 by 1224 PDF points.
+- `top-left`: Place the logo in the upper-left corner.
+- `top-right`: Place the logo in the upper-right corner.
+- `bottom-left`: Place the logo in the lower-left corner.
+- `bottom-right`: Place the logo in the lower-right corner.
 """
 
-PdfStructuredTextKnownFont: TypeAlias = Literal[
+PdfZugferdLocale: TypeAlias = Literal["de-DE", "fr-FR", "nl-NL", "en-GB"]
+"""Locale used to format values in a rendered ZUGFeRD invoice.
+
+Accepted values:
+
+- `de-DE`: Format values using German (Germany) conventions.
+- `fr-FR`: Format values using French (France) conventions.
+- `nl-NL`: Format values using Dutch (Netherlands) conventions.
+- `en-GB`: Format values using English (United Kingdom) conventions.
+"""
+
+PdfZugferdCurrencyDisplay: TypeAlias = Literal["code", "symbol", "name"]
+"""Currency representation used in a rendered ZUGFeRD invoice.
+
+Accepted values:
+
+- `code`: Display the ISO currency code.
+- `symbol`: Display the currency symbol, falling back to its code when unknown.
+- `name`: Display the currency name.
+"""
+
+PdfZugferdLabelLanguage: TypeAlias = Literal["en", "de", "fr"] | str
+"""BCP 47 language tag used for generated ZUGFeRD invoice labels.
+
+The primary language must be English, German, or French. ISO 639-2 aliases
+(``eng``, ``deu``, and ``fra``) and region subtags such as ``en-US`` are
+accepted and canonicalized to the corresponding two-letter primary language.
+
+Accepted values:
+
+- `en`: Render English labels.
+- `de`: Render German labels.
+- `fr`: Render French labels.
+"""
+
+PdfKnownTextFont: TypeAlias = Literal[
     "andalemono",
     "arial",
     "arialitalic",
@@ -257,13 +276,12 @@ PdfStructuredTextKnownFont: TypeAlias = Literal[
     "verdanaitalic",
     "verdanabold",
     "verdanabolditalic",
-    "webdings",
 ]
-"""Published pdfRest font names for structured document conversion.
+"""Published text-capable pdfRest font names.
 
-These are suggestions, not a closed service catalog. An installed font name
-outside this list may also be used through ``PdfStructuredTextFontName``.
-See the [pdfRest Font List](https://pdfrest.com/documentation/fontlist/).
+These are suggestions, not a closed service catalog. APIs that accept installed
+font names may also accept deployment-specific text-capable fonts. Symbol fonts
+such as Webdings are excluded from this shared readable-text catalog.
 
 Accepted values:
 
@@ -327,6 +345,114 @@ Accepted values:
 - `verdanaitalic`: Verdana Italic.
 - `verdanabold`: Verdana Bold.
 - `verdanabolditalic`: Verdana Bold Italic.
+"""
+
+PdfZugferdKnownFont: TypeAlias = PdfKnownTextFont
+"""Published text-capable pdfRest font names for ZUGFeRD rendering.
+
+Accepted values are documented by ``PdfKnownTextFont``. These are suggestions,
+not a closed service catalog; ``PdfZugferdFontName`` also accepts other
+installed text-capable fonts.
+"""
+
+PdfZugferdFontName: TypeAlias = PdfZugferdKnownFont | str
+"""A published pdfRest font token or another installed text-capable font."""
+
+
+class PdfZugferdRenderOptions(TypedDict, total=False):
+    """Appearance and regional options for generated ZUGFeRD invoice PDFs.
+
+    Attributes:
+        logo_corner: Optional corner for an uploaded logo. Defaults to
+            ``top-left``.
+        font: Optional non-empty body-text font name, at most 200 characters.
+        bold_font: Optional non-empty emphasized-text font name, at most 200
+            characters.
+        text_color: Optional primary text color as RGB (0-255 channels) or CMYK
+            (0-100 percentage channels).
+        muted_text_color: Optional secondary text color as RGB or CMYK.
+        accent_color: Optional accent color as RGB or CMYK.
+        border_color: Optional table/rule border color as RGB or CMYK.
+        table_header_color: Optional table-header fill color as RGB or CMYK.
+        table_alternate_color: Optional alternating-row fill color as RGB or
+            CMYK.
+        footer_message: Optional footer text, at most 500 characters. ``None``
+            leaves the footer unset.
+        locale: Optional locale for value formatting. Defaults to ``en-GB``.
+        label_language: Optional BCP 47 label language whose primary subtag is
+            ``en``, ``de``, or ``fr``. Defaults to ``en``.
+        currency_display: Optional currency representation. Defaults to
+            ``code``.
+        date_format: Optional .NET date format that preserves the complete day,
+            month, and four-digit year. ``None`` uses the renderer default.
+        decimal_precision: Optional decimal places from 0 through 4. Defaults
+            to 2.
+    """
+
+    logo_corner: PdfZugferdLogoCorner
+    font: PdfZugferdFontName
+    bold_font: PdfZugferdFontName
+    text_color: PdfColor
+    muted_text_color: PdfColor
+    accent_color: PdfColor
+    border_color: PdfColor
+    table_header_color: PdfColor
+    table_alternate_color: PdfColor
+    footer_message: str | None
+    locale: PdfZugferdLocale
+    label_language: PdfZugferdLabelLanguage
+    currency_display: PdfZugferdCurrencyDisplay
+    date_format: str | None
+    decimal_precision: int
+
+
+PdfStructuredTextDataPresentation: TypeAlias = Literal["source", "hierarchy"]
+"""JSON/XML presentation accepted by structured document conversion helpers.
+
+Accepted values:
+
+- `source`: Preserve JSON or XML syntax and indentation.
+- `hierarchy`: Render JSON or XML as a readable hierarchy.
+"""
+
+PdfStructuredTextPageOrientation: TypeAlias = Literal["auto", "portrait", "landscape"]
+"""Page orientation accepted by structured document conversion helpers.
+
+Accepted values:
+
+- `auto`: Let the converter choose an orientation appropriate for the content.
+- `portrait`: Use portrait page orientation.
+- `landscape`: Use landscape page orientation.
+"""
+
+PdfStructuredTextPageSize: TypeAlias = Literal[
+    "Letter", "Legal", "Ledger", "A3", "A4", "A5", "Tabloid"
+]
+"""Named page size for structured document conversion.
+
+For a custom size, use ``PdfStructuredTextPageSetup.width`` and ``height``.
+
+Accepted values:
+
+- `Letter`: US letter paper, 612 by 792 PDF points.
+- `Legal`: US legal paper, 612 by 1008 PDF points.
+- `Ledger`: Ledger paper, 1224 by 792 PDF points.
+- `A3`: ISO A3 paper, 842 by 1191 PDF points.
+- `A4`: ISO A4 paper, 595 by 842 PDF points.
+- `A5`: ISO A5 paper, 420 by 595 PDF points.
+- `Tabloid`: Tabloid paper, 792 by 1224 PDF points.
+"""
+
+PdfStructuredTextKnownFont: TypeAlias = PdfKnownTextFont | Literal["webdings"]
+"""Published pdfRest font names for structured document conversion.
+
+This catalog combines every text-capable value documented by
+``PdfKnownTextFont`` with the structured-document-only symbol font.
+``PdfStructuredTextFontName`` also accepts deployment-specific installed fonts.
+
+Accepted values:
+
+- Every value documented by ``PdfKnownTextFont``: text-capable installed fonts.
 - `webdings`: Webdings.
 """
 
