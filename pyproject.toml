@@ -3,6 +3,8 @@ name = "pdfrest"
 version = "1.5.0"
 description = "Python client library for interacting with the pdfRest API"
 readme = { file = "README.md", content-type = "text/markdown" }
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [
     { name = "Datalogics" },
 ]
