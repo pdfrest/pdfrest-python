@@ -107,6 +107,9 @@ Use this group for password protection, permissions, signatures, and standards.
 - Archival/print conformance:
   [convert_to_pdfa][pdfrest.PdfRestClient.convert_to_pdfa],
   [convert_to_pdfx][pdfrest.PdfRestClient.convert_to_pdfx]
+- Electronic invoices:
+  [create_zugferd_pdf][pdfrest.PdfRestClient.create_zugferd_pdf],
+  [validate_zugferd_pdf][pdfrest.PdfRestClient.validate_zugferd_pdf]
 
 ## PDF cleanup and rendering normalization
 
@@ -130,6 +133,7 @@ Use this group when the user starts with non-PDF content or needs downstream
 formats.
 
 - Into PDF:
+  [create_zugferd_pdf][pdfrest.PdfRestClient.create_zugferd_pdf],
   [convert_office_to_pdf][pdfrest.PdfRestClient.convert_office_to_pdf],
   [convert_postscript_to_pdf][pdfrest.PdfRestClient.convert_postscript_to_pdf],
   [convert_email_to_pdf][pdfrest.PdfRestClient.convert_email_to_pdf],

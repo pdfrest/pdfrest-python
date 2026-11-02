@@ -75,6 +75,13 @@ __all__ = (
     "PdfStructuredTextTextAlignment",
     "PdfTextColor",
     "PdfXType",
+    "PdfZugferdCurrencyDisplay",
+    "PdfZugferdFontName",
+    "PdfZugferdKnownFont",
+    "PdfZugferdLabelLanguage",
+    "PdfZugferdLocale",
+    "PdfZugferdLogoCorner",
+    "PdfZugferdRenderOptions",
     "PngColorModel",
     "PostScriptLevel",
     "SummaryFormat",
@@ -158,6 +165,236 @@ PdfCMYKColor = tuple[int, int, int, int]
 PdfRGBColor = tuple[int, int, int]
 PdfColor = PdfRGBColor | PdfCMYKColor
 PdfTextColor = PdfColor
+
+PdfZugferdLogoCorner: TypeAlias = Literal[
+    "top-left", "top-right", "bottom-left", "bottom-right"
+]
+"""Logo placement used while rendering a ZUGFeRD invoice.
+
+Accepted values:
+
+- `top-left`: Place the logo in the upper-left corner.
+- `top-right`: Place the logo in the upper-right corner.
+- `bottom-left`: Place the logo in the lower-left corner.
+- `bottom-right`: Place the logo in the lower-right corner.
+"""
+
+PdfZugferdLocale: TypeAlias = Literal["de-DE", "fr-FR", "nl-NL", "en-GB"]
+"""Locale used to format values in a rendered ZUGFeRD invoice.
+
+Accepted values:
+
+- `de-DE`: Format values using German (Germany) conventions.
+- `fr-FR`: Format values using French (France) conventions.
+- `nl-NL`: Format values using Dutch (Netherlands) conventions.
+- `en-GB`: Format values using English (United Kingdom) conventions.
+"""
+
+PdfZugferdCurrencyDisplay: TypeAlias = Literal["code", "symbol", "name"]
+"""Currency representation used in a rendered ZUGFeRD invoice.
+
+Accepted values:
+
+- `code`: Display the ISO currency code.
+- `symbol`: Display the currency symbol, falling back to its code when unknown.
+- `name`: Display the currency name.
+"""
+
+PdfZugferdLabelLanguage: TypeAlias = Literal["en", "de", "fr"] | str
+"""BCP 47 language tag used for generated ZUGFeRD invoice labels.
+
+The primary language must be English, German, or French. Region subtags such
+as ``en-US`` are accepted and normalized by pdfRest to their primary language.
+
+Accepted values:
+
+- `en`: Render English labels.
+- `de`: Render German labels.
+- `fr`: Render French labels.
+"""
+
+PdfZugferdKnownFont: TypeAlias = Literal[
+    "andalemono",
+    "arial",
+    "arialitalic",
+    "arialbold",
+    "arialblack",
+    "calibri",
+    "calibriitalic",
+    "calibribold",
+    "calibribolditalic",
+    "cambriaitalic",
+    "cambriabold",
+    "cambriabolditalic",
+    "candara",
+    "candaraitalic",
+    "candarabold",
+    "candarabolditalic",
+    "cantarellregular",
+    "cantarelloblique",
+    "cantarellbold",
+    "cantarellboldoblique",
+    "comicsans",
+    "comicsansbold",
+    "constantia",
+    "consolas",
+    "consolasitalic",
+    "consolasbold",
+    "consolasbolditalic",
+    "constantiaitalic",
+    "constantiabold",
+    "constantiabolditalic",
+    "corbel",
+    "corbelitalic",
+    "corbelbold",
+    "corbelbolditalic",
+    "courier",
+    "courieritalic",
+    "courierbold",
+    "courierbolditalic",
+    "dejavu",
+    "dejavu sans mono oblique",
+    "dejavu sans mono bold",
+    "dejavu sans mono bold oblique",
+    "georgia",
+    "georgiaitalic",
+    "georgiabold",
+    "georgiabolditalic",
+    "impact",
+    "tahoma",
+    "timesnewroman",
+    "timesnewromanitalic",
+    "timesnewromanbold",
+    "timesnewromanbolditalic",
+    "trebuchet",
+    "trebuchetitalic",
+    "trebuchetbold",
+    "trebuchetbolditalic",
+    "verdana",
+    "verdanaitalic",
+    "verdanabold",
+    "verdanabolditalic",
+]
+"""Published text-capable pdfRest font names for ZUGFeRD rendering.
+
+These are suggestions, not a closed service catalog. Another installed,
+text-capable font may be supplied through ``PdfZugferdFontName``. Symbol fonts
+such as Webdings are not valid for readable invoice text.
+
+Accepted values:
+
+- `andalemono`: Andale Mono.
+- `arial`: Arial.
+- `arialitalic`: Arial Italic.
+- `arialbold`: Arial Bold.
+- `arialblack`: Arial Black.
+- `calibri`: Calibri.
+- `calibriitalic`: Calibri Italic.
+- `calibribold`: Calibri Bold.
+- `calibribolditalic`: Calibri Bold Italic.
+- `cambriaitalic`: Cambria Italic.
+- `cambriabold`: Cambria Bold.
+- `cambriabolditalic`: Cambria Bold Italic.
+- `candara`: Candara.
+- `candaraitalic`: Candara Italic.
+- `candarabold`: Candara Bold.
+- `candarabolditalic`: Candara Bold Italic.
+- `cantarellregular`: Cantarell.
+- `cantarelloblique`: Cantarell Oblique.
+- `cantarellbold`: Cantarell Bold.
+- `cantarellboldoblique`: Cantarell Bold Oblique.
+- `comicsans`: Comic Sans.
+- `comicsansbold`: Comic Sans Bold.
+- `constantia`: Constantia.
+- `consolas`: Consolas.
+- `consolasitalic`: Consolas Italic.
+- `consolasbold`: Consolas Bold.
+- `consolasbolditalic`: Consolas Bold Italic.
+- `constantiaitalic`: Constantia Italic.
+- `constantiabold`: Constantia Bold.
+- `constantiabolditalic`: Constantia Bold Italic.
+- `corbel`: Corbel.
+- `corbelitalic`: Corbel Italic.
+- `corbelbold`: Corbel Bold.
+- `corbelbolditalic`: Corbel Bold Italic.
+- `courier`: Courier New.
+- `courieritalic`: Courier New Italic.
+- `courierbold`: Courier New Bold.
+- `courierbolditalic`: Courier New Bold Italic.
+- `dejavu`: DejaVu Sans Mono.
+- `dejavu sans mono oblique`: DejaVu Sans Mono Oblique.
+- `dejavu sans mono bold`: DejaVu Sans Mono Bold.
+- `dejavu sans mono bold oblique`: DejaVu Sans Mono Bold Oblique.
+- `georgia`: Georgia.
+- `georgiaitalic`: Georgia Italic.
+- `georgiabold`: Georgia Bold.
+- `georgiabolditalic`: Georgia Bold Italic.
+- `impact`: Impact.
+- `tahoma`: Tahoma.
+- `timesnewroman`: Times New Roman.
+- `timesnewromanitalic`: Times New Roman Italic.
+- `timesnewromanbold`: Times New Roman Bold.
+- `timesnewromanbolditalic`: Times New Roman Bold Italic.
+- `trebuchet`: Trebuchet.
+- `trebuchetitalic`: Trebuchet Italic.
+- `trebuchetbold`: Trebuchet Bold.
+- `trebuchetbolditalic`: Trebuchet Bold Italic.
+- `verdana`: Verdana.
+- `verdanaitalic`: Verdana Italic.
+- `verdanabold`: Verdana Bold.
+- `verdanabolditalic`: Verdana Bold Italic.
+"""
+
+PdfZugferdFontName: TypeAlias = PdfZugferdKnownFont | str
+"""A published pdfRest font token or another installed text-capable font."""
+
+
+class PdfZugferdRenderOptions(TypedDict, total=False):
+    """Appearance and regional options for generated ZUGFeRD invoice PDFs.
+
+    Attributes:
+        logo_corner: Optional corner for an uploaded logo. Defaults to
+            ``top-left``.
+        font: Optional non-empty body-text font name, at most 200 characters.
+        bold_font: Optional non-empty emphasized-text font name, at most 200
+            characters.
+        text_color: Optional primary text color as RGB (0-255 channels) or CMYK
+            (0-100 percentage channels).
+        muted_text_color: Optional secondary text color as RGB or CMYK.
+        accent_color: Optional accent color as RGB or CMYK.
+        border_color: Optional table/rule border color as RGB or CMYK.
+        table_header_color: Optional table-header fill color as RGB or CMYK.
+        table_alternate_color: Optional alternating-row fill color as RGB or
+            CMYK.
+        footer_message: Optional footer text, at most 500 characters. ``None``
+            leaves the footer unset.
+        locale: Optional locale for value formatting. Defaults to ``en-GB``.
+        label_language: Optional BCP 47 label language whose primary subtag is
+            ``en``, ``de``, or ``fr``. Defaults to ``en``.
+        currency_display: Optional currency representation. Defaults to
+            ``code``.
+        date_format: Optional .NET date format that preserves the complete day,
+            month, and four-digit year. ``None`` uses the renderer default.
+        decimal_precision: Optional decimal places from 0 through 4. Defaults
+            to 2.
+    """
+
+    logo_corner: PdfZugferdLogoCorner
+    font: PdfZugferdFontName
+    bold_font: PdfZugferdFontName
+    text_color: PdfColor
+    muted_text_color: PdfColor
+    accent_color: PdfColor
+    border_color: PdfColor
+    table_header_color: PdfColor
+    table_alternate_color: PdfColor
+    footer_message: str | None
+    locale: PdfZugferdLocale
+    label_language: PdfZugferdLabelLanguage
+    currency_display: PdfZugferdCurrencyDisplay
+    date_format: str | None
+    decimal_precision: int
+
 
 PdfStructuredTextDataPresentation: TypeAlias = Literal["source", "hierarchy"]
 """JSON/XML presentation accepted by structured document conversion helpers.
