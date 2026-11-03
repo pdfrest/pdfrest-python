@@ -21,6 +21,8 @@ supported interpreter matrix.
 
 ## Available Examples
 
+- `examples/apply_tdm_reservation/apply_tdm_reservation_example.py` – embed a
+  hosted TDM policy URL in an uploaded PDF.
 - `examples/add_shapes/add_shapes_to_pdf_example.py` – add a styled rectangle
   and divider line to a PDF with accessibility tagging enabled.
 - `examples/convert_structured_documents/convert_structured_documents_to_pdf_example.py`

@@ -186,6 +186,7 @@ to the API guide and API reference for exact method names and options.
 - Redaction preview/apply
 - Passwords and permissions
 - Encryption/decryption/restrictions
+- URL-based text-and-data-mining reservation metadata
 - Watermarking (text/image)
 - Digital signing
 
