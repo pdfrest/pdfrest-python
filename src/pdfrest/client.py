@@ -122,6 +122,7 @@ from .models._internal import (
     PdfRestrictPayload,
     PdfSignPayload,
     PdfSplitPayload,
+    PdfTdmReservationPayload,
     PdfTextWatermarkPayload,
     PdfToExcelPayload,
     PdfToPdfaPayload,
@@ -4619,6 +4620,53 @@ class PdfRestClient(_SyncApiClient):
             timeout=timeout,
         )
 
+    def apply_tdm_reservation(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        policy: str,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Apply a text-and-data-mining reservation policy to a PDF.
+
+        Embeds a URL that points to hosted terms of use or a machine-readable
+        TDM policy document. The URL is stored as metadata without fetching or
+        inspecting its destination.
+
+        Args:
+            file: Uploaded PDF resource to update.
+            policy: HTTP or HTTPS URL for the hosted TDM policy or terms of use.
+            output: Generated output filename without its extension.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the TDM-reserved PDF.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {"files": file, "policy": policy}
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/tdm-reserved-pdf",
+            payload=payload,
+            payload_model=PdfTdmReservationPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
     def validate_zugferd_pdf(
         self,
         file: PdfRestFile | Sequence[PdfRestFile],
@@ -8257,6 +8305,52 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/signed-pdf",
             payload=payload,
             payload_model=PdfSignPayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def apply_tdm_reservation(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        policy: str,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronously apply a TDM reservation policy to a PDF.
+
+        This is the asynchronous variant of
+        [PdfRestClient.apply_tdm_reservation][pdfrest.PdfRestClient.apply_tdm_reservation].
+
+        Args:
+            file: Uploaded PDF resource to update.
+            policy: HTTP or HTTPS URL for the hosted TDM policy or terms of use.
+            output: Generated output filename without its extension.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the TDM-reserved PDF.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {"files": file, "policy": policy}
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/tdm-reserved-pdf",
+            payload=payload,
+            payload_model=PdfTdmReservationPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,

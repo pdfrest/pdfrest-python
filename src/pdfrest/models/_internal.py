@@ -16,6 +16,7 @@ from pydantic import (
     HttpUrl,
     PlainSerializer,
     StringConstraints,
+    TypeAdapter,
     ValidatorFunctionWrapHandler,
     WrapValidator,
     model_serializer,
@@ -70,6 +71,7 @@ PDFA_OUTPUT_TYPES: tuple[PdfAType, ...] = cast(tuple[PdfAType, ...], get_args(Pd
 PDFA_OUTPUT_TYPE_MAP: dict[str, PdfAType] = {
     output_type.casefold(): output_type for output_type in PDFA_OUTPUT_TYPES
 }
+_HTTP_URL_ADAPTER = TypeAdapter(HttpUrl)
 
 
 def _ensure_list(value: Any) -> Any:
@@ -127,6 +129,22 @@ def _validate_output_prefix(value: str | None) -> str | None:
             + "."
         )
         raise ValueError(msg)
+    return value
+
+
+def _validate_http_url(value: str) -> str:
+    """Validate an HTTP(S) URL without normalizing the caller's value."""
+    message = "Must be a valid HTTP or HTTPS URL."
+    if (
+        any(character.isspace() for character in value)
+        or "\\" in value
+        or re.search(r"%(?![0-9A-Fa-f]{2})", value)
+    ):
+        raise ValueError(message)
+    try:
+        _ = _HTTP_URL_ADAPTER.validate_python(value)
+    except ValueError:
+        raise ValueError(message) from None
     return value
 
 
@@ -3634,6 +3652,35 @@ class PdfDecryptPayload(BaseModel):
             default=None,
         ),
     ] = None
+    output: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+
+class PdfTdmReservationPayload(BaseModel):
+    """Adapt caller options into a pdfRest-ready TDM reservation payload."""
+
+    files: Annotated[
+        list[PdfRestFile],
+        Field(
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("file", "files"),
+            serialization_alias="id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    policy: Annotated[
+        str,
+        Field(min_length=1, serialization_alias="policy"),
+        AfterValidator(_validate_http_url),
+    ]
     output: Annotated[
         str | None,
         Field(serialization_alias="output", min_length=1, default=None),
