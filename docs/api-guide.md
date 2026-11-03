@@ -104,6 +104,9 @@ Use this group for password protection, permissions, signatures, and standards.
   [remove_open_password][pdfrest.PdfRestClient.remove_open_password]
 - Digital signatures:
   [sign_pdf][pdfrest.PdfRestClient.sign_pdf]
+- Text-and-data-mining reservation:
+  [apply_tdm_reservation][pdfrest.PdfRestClient.apply_tdm_reservation] embeds
+  the URL of hosted terms or a machine-readable policy without fetching it
 - Archival/print conformance:
   [convert_to_pdfa][pdfrest.PdfRestClient.convert_to_pdfa],
   [convert_to_pdfx][pdfrest.PdfRestClient.convert_to_pdfx]
