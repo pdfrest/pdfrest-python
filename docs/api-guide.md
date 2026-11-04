@@ -118,6 +118,10 @@ Use this group for password protection, permissions, signatures, and standards.
 
 Use this group to improve compatibility, performance, or file size.
 
+- Page geometry:
+  [set_pdf_page_boxes][pdfrest.PdfRestClient.set_pdf_page_boxes] updates the
+  MediaBox, CropBox, BleedBox, TrimBox, or ArtBox on selected pages
+
 - Size and optimization:
   [compress_pdf][pdfrest.PdfRestClient.compress_pdf],
   [linearize_pdf][pdfrest.PdfRestClient.linearize_pdf]
