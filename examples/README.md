@@ -23,6 +23,8 @@ supported interpreter matrix.
 
 - `examples/apply_tdm_reservation/apply_tdm_reservation_example.py` – embed a
   hosted TDM policy URL in an uploaded PDF.
+- `examples/set_pdf_page_boxes/set_pdf_page_boxes_example.py` – enlarge a PDF's
+  MediaBox and apply a CropBox inset with typed page selections and margins.
 - `examples/add_shapes/add_shapes_to_pdf_example.py` – add a styled rectangle
   and divider line to a PDF with accessibility tagging enabled.
 - `examples/convert_structured_documents/convert_structured_documents_to_pdf_example.py`
