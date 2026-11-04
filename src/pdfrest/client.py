@@ -120,6 +120,7 @@ from .models._internal import (
     PdfRedactionPreviewPayload,
     PdfRestRawFileResponse,
     PdfRestrictPayload,
+    PdfSetPageBoxesPayload,
     PdfSignPayload,
     PdfSplitPayload,
     PdfTdmReservationPayload,
@@ -163,6 +164,7 @@ from .types import (
     PdfConversionLocale,
     PdfInfoQuery,
     PdfMergeInput,
+    PdfPageBoxDefinition,
     PdfPageOrientation,
     PdfPageSelection,
     PdfPageSize,
@@ -3579,6 +3581,53 @@ class PdfRestClient(_SyncApiClient):
             endpoint="/pdf-with-added-image",
             payload=payload,
             payload_model=PdfAddImagePayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    def set_pdf_page_boxes(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        boxes: PdfPageBoxDefinition | Sequence[PdfPageBoxDefinition],
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Set one or more page boundary boxes on a PDF.
+
+        Margins use PDF units, where 72 units equal one inch, and are relative
+        to the current MediaBox. MediaBox margins may be negative to enlarge a
+        page; CropBox, BleedBox, TrimBox, and ArtBox margins must be positive.
+
+        Args:
+            file: Uploaded PDF resource to update.
+            boxes: One or more typed MediaBox or inset page-box definitions.
+            output: Generated output filename without its extension.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the updated PDF.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {"files": file, "boxes": boxes}
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/pdf-with-page-boxes-set",
+            payload=payload,
+            payload_model=PdfSetPageBoxesPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
@@ -7199,6 +7248,52 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/pdf-with-added-image",
             payload=payload,
             payload_model=PdfAddImagePayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def set_pdf_page_boxes(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        boxes: PdfPageBoxDefinition | Sequence[PdfPageBoxDefinition],
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronously set one or more page boundary boxes on a PDF.
+
+        This is the asynchronous variant of
+        [PdfRestClient.set_pdf_page_boxes][pdfrest.PdfRestClient.set_pdf_page_boxes].
+
+        Args:
+            file: Uploaded PDF resource to update.
+            boxes: One or more typed MediaBox or inset page-box definitions.
+            output: Generated output filename without its extension.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response containing the updated PDF.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {"files": file, "boxes": boxes}
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/pdf-with-page-boxes-set",
+            payload=payload,
+            payload_model=PdfSetPageBoxesPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
