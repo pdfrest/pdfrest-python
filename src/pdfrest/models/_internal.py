@@ -457,7 +457,9 @@ class UnzipPayload(BaseModel):
 PageNumber = Annotated[int, Field(ge=1), PlainSerializer(lambda x: str(x))]
 
 
-def _split_page_range_tuple(x: str) -> tuple[str, str]:
+def _split_page_range_tuple(x: Any) -> Any:
+    if not isinstance(x, str):
+        return x
     start, end = x.split("-", maxsplit=1)
     return start, end
 
@@ -490,6 +492,183 @@ _AscendingPageRangeTuple = Annotated[
 ]
 
 AscendingPageRange = PageNumber | Literal["last"] | _AscendingPageRangeTuple
+
+
+def _serialize_page_box_range(
+    value: str | int | tuple[int, int | Literal["last"]],
+) -> str:
+    if isinstance(value, tuple):
+        return "-".join(str(part) for part in value)
+    return str(value)
+
+
+def _translate_page_box_range_error(
+    value: Any,
+    handler: ValidatorFunctionWrapHandler,
+) -> str | int | tuple[int, int | Literal["last"]]:
+    try:
+        return cast(str | int | tuple[int, int | Literal["last"]], handler(value))
+    except ValueError as error:
+        error_type: Literal["page_box_range"] = "page_box_range"
+        raise PydanticCustomError(
+            error_type,
+            "The given page range is invalid. [{value}].",
+            {"value": value},
+        ) from error
+
+
+def _split_page_box_range_tuple(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    if not re.fullmatch(r"[1-9][0-9]*-(?:[1-9][0-9]*|last)", value):
+        msg = "Page ranges must use an ascending `start-end` or `start-last` form."
+        raise ValueError(msg)
+    return _split_page_range_tuple(value)
+
+
+_PageBoxPageNumber = Annotated[int, Field(ge=1, strict=True)]
+_PageBoxPageNumberString = Annotated[
+    str,
+    StringConstraints(pattern=r"^[1-9][0-9]*$"),
+]
+_PageBoxAscendingRangeTuple = Annotated[
+    tuple[PageNumber, PageNumber] | tuple[PageNumber, Literal["last"]],
+    BeforeValidator(_split_page_box_range_tuple),
+    AfterValidator(_ascending_page_range),
+]
+
+
+PageBoxRange = Annotated[
+    Literal["all", "even", "odd"]
+    | _PageBoxPageNumber
+    | _PageBoxPageNumberString
+    | _PageBoxAscendingRangeTuple,
+    WrapValidator(_translate_page_box_range_error),
+    PlainSerializer(_serialize_page_box_range),
+]
+
+
+_FiniteNumber = Annotated[float, Field(allow_inf_nan=False)]
+_PositiveFiniteNumber = Annotated[float, Field(gt=0, allow_inf_nan=False)]
+
+
+class _PdfMediaBoxPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    range: PageBoxRange
+    top: _FiniteNumber
+    bottom: _FiniteNumber
+    left: _FiniteNumber
+    right: _FiniteNumber
+
+
+class _PdfInsetPageBoxPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    range: PageBoxRange
+    top: _PositiveFiniteNumber
+    bottom: _PositiveFiniteNumber
+    left: _PositiveFiniteNumber
+    right: _PositiveFiniteNumber
+
+
+class _PdfMediaBoxDefinition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    box: Literal["media"]
+    pages: Annotated[list[_PdfMediaBoxPage], Field(min_length=1)]
+
+
+class _PdfInsetPageBoxDefinition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    box: Literal["crop", "bleed", "trim", "art"]
+    pages: Annotated[list[_PdfInsetPageBoxPage], Field(min_length=1)]
+
+
+_PageBoxModel = _PdfMediaBoxDefinition | _PdfInsetPageBoxDefinition
+
+
+_PdfPageBoxDefinition = Annotated[
+    _PageBoxModel,
+    Field(discriminator="box"),
+]
+
+
+def _page_box_selection_interval(
+    value: str | int | tuple[int, int | Literal["last"]],
+) -> tuple[int, int | None, int | None]:
+    if value == "all":
+        return 1, None, None
+    if value == "even":
+        return 2, None, 0
+    if value == "odd":
+        return 1, None, 1
+    if isinstance(value, tuple):
+        start, end = value
+        return start, None if end == "last" else end, None
+    page = int(value)
+    return page, page, None
+
+
+def _page_box_selections_overlap(
+    left: str | int | tuple[int, int | Literal["last"]],
+    right: str | int | tuple[int, int | Literal["last"]],
+) -> bool:
+    left_start, left_end, left_parity = _page_box_selection_interval(left)
+    right_start, right_end, right_parity = _page_box_selection_interval(right)
+    start = max(left_start, right_start)
+    finite_ends = [end for end in (left_end, right_end) if end is not None]
+    end = min(finite_ends) if finite_ends else None
+    if end is not None and start > end:
+        return False
+    if (
+        left_parity is not None
+        and right_parity is not None
+        and left_parity != right_parity
+    ):
+        return False
+    parity = left_parity if left_parity is not None else right_parity
+    if parity is None or end is None:
+        return True
+    first_matching_page = start if start % 2 == parity else start + 1
+    return first_matching_page <= end
+
+
+def _validate_page_box_selection_conflicts(
+    value: list[_PageBoxModel],
+) -> list[_PageBoxModel]:
+    selections_by_box: dict[
+        str,
+        list[str | int | tuple[int, int | Literal["last"]]],
+    ] = {}
+    for definition in value:
+        prior_selections = selections_by_box.setdefault(definition.box, [])
+        for page in definition.pages:
+            if any(
+                _page_box_selections_overlap(page.range, prior)
+                for prior in prior_selections
+            ):
+                error_type: Literal["page_box_selection_conflict"] = (
+                    "page_box_selection_conflict"
+                )
+                selection = _serialize_page_box_range(page.range)
+                raise PydanticCustomError(
+                    error_type,
+                    "The box page settings conflict with each other. "
+                    "Page selection [{selection}] overlaps an earlier "
+                    "{box} selection.",
+                    {"selection": selection, "box": definition.box},
+                )
+            prior_selections.append(page.range)
+    return value
+
+
+def _serialize_page_box_definitions(
+    value: list[_PageBoxModel],
+) -> str:
+    boxes = [box.model_dump(mode="json") for box in value]
+    return to_json({"boxes": boxes}).decode()
 
 
 _PostscriptPageSelections = Annotated[
@@ -2078,6 +2257,39 @@ class PdfSplitPayload(BaseModel):
         PlainSerializer(_serialize_grouped_page_ranges),
     ]
     output_prefix: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+
+class PdfSetPageBoxesPayload(BaseModel):
+    """Adapt typed page-box definitions into pdfRest's JSON-string field."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    files: Annotated[
+        list[PdfRestFile],
+        Field(
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("file", "files"),
+            serialization_alias="id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    boxes: Annotated[
+        list[_PdfPageBoxDefinition],
+        Field(min_length=1),
+        BeforeValidator(_ensure_list),
+        AfterValidator(_validate_page_box_selection_conflicts),
+        PlainSerializer(_serialize_page_box_definitions),
+    ]
+    output: Annotated[
         str | None,
         Field(serialization_alias="output", min_length=1, default=None),
         AfterValidator(_validate_output_prefix),

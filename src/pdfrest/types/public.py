@@ -42,8 +42,14 @@ __all__ = (
     "PdfConversionLocale",
     "PdfCustomPageSize",
     "PdfInfoQuery",
+    "PdfInsetPageBoxDefinition",
+    "PdfInsetPageBoxPage",
+    "PdfMediaBoxDefinition",
+    "PdfMediaBoxPage",
     "PdfMergeInput",
     "PdfMergeSource",
+    "PdfPageBoxDefinition",
+    "PdfPageBoxRange",
     "PdfPageOrientation",
     "PdfPageSelection",
     "PdfPageSize",
@@ -895,6 +901,92 @@ class PdfAddRectangleObject(TypedDict, total=False):
 PdfAddShapeObject: TypeAlias = PdfAddLineObject | PdfAddRectangleObject
 """A line or rectangle object accepted by
 [pdfrest.PdfRestClient.add_shapes_to_pdf][]."""
+
+
+PdfPageBoxRange: TypeAlias = int | str
+"""Page selection accepted by a page-box definition.
+
+Use a positive one-based page number, an ascending range such as ``"2-5"``,
+a range ending in ``"last"``, or one of ``"all"``, ``"even"``, and ``"odd"``.
+The payload model validates string syntax and range ordering before transport.
+"""
+
+
+class PdfMediaBoxPage(TypedDict, total=False):
+    """Signed MediaBox margins for one page selection.
+
+    Attributes:
+        range: Required page selection. Accepts a positive page number, an
+            ascending range, a range ending in ``"last"``, ``"all"``,
+            ``"even"``, or ``"odd"``.
+        top: Required top margin in PDF units. Negative values enlarge the page.
+        bottom: Required bottom margin in PDF units. Negative values enlarge
+            the page.
+        left: Required left margin in PDF units. Negative values enlarge the
+            page.
+        right: Required right margin in PDF units. Negative values enlarge the
+            page.
+    """
+
+    range: Required[PdfPageBoxRange]
+    top: Required[float]
+    bottom: Required[float]
+    left: Required[float]
+    right: Required[float]
+
+
+class PdfInsetPageBoxPage(TypedDict, total=False):
+    """Positive margins for a CropBox, BleedBox, TrimBox, or ArtBox selection.
+
+    Attributes:
+        range: Required page selection. Accepts a positive page number, an
+            ascending range, a range ending in ``"last"``, ``"all"``,
+            ``"even"``, or ``"odd"``.
+        top: Required top margin in PDF units. Must be greater than zero.
+        bottom: Required bottom margin in PDF units. Must be greater than zero.
+        left: Required left margin in PDF units. Must be greater than zero.
+        right: Required right margin in PDF units. Must be greater than zero.
+    """
+
+    range: Required[PdfPageBoxRange]
+    top: Required[float]
+    bottom: Required[float]
+    left: Required[float]
+    right: Required[float]
+
+
+class PdfMediaBoxDefinition(TypedDict, total=False):
+    """MediaBox update accepted by the set-page-boxes helper.
+
+    See [pdfrest.PdfRestClient.set_pdf_page_boxes][].
+
+    Attributes:
+        box: Required discriminator. Must be ``"media"``.
+        pages: Required non-empty sequence of signed MediaBox margin updates.
+    """
+
+    box: Required[Literal["media"]]
+    pages: Required[Sequence[PdfMediaBoxPage]]
+
+
+class PdfInsetPageBoxDefinition(TypedDict, total=False):
+    """Inset page-box update accepted by the set-page-boxes helper.
+
+    See [pdfrest.PdfRestClient.set_pdf_page_boxes][].
+
+    Attributes:
+        box: Required discriminator. Must be ``"crop"``, ``"bleed"``,
+            ``"trim"``, or ``"art"``.
+        pages: Required non-empty sequence of strictly positive margin updates.
+    """
+
+    box: Required[Literal["crop", "bleed", "trim", "art"]]
+    pages: Required[Sequence[PdfInsetPageBoxPage]]
+
+
+PdfPageBoxDefinition: TypeAlias = PdfMediaBoxDefinition | PdfInsetPageBoxDefinition
+"""A MediaBox or inset page-box definition accepted by
+[pdfrest.PdfRestClient.set_pdf_page_boxes][]."""
 
 
 class PdfAddTextObject(TypedDict, total=False):
