@@ -72,8 +72,11 @@ def test_live_add_text_to_pdf(
         response = client.add_text_to_pdf(
             uploaded_pdf_for_text,
             text_objects=[_default_text_object()],
+            tag_enabled=True,
+            tag_language="en-US",
             output="live-added-text",
         )
+        tagged_info = client.query_pdf_info(response.output_file, queries="tagged")
 
     assert response.output_files
     output_file = response.output_file
@@ -82,6 +85,7 @@ def test_live_add_text_to_pdf(
     assert output_file.size > 0
     assert response.warning is None
     assert uploaded_pdf_for_text.id in response.input_ids
+    assert tagged_info.tagged is True
 
 
 @pytest.mark.asyncio
@@ -97,6 +101,12 @@ async def test_live_async_add_text_to_pdf(
         response = await client.add_text_to_pdf(
             uploaded_pdf_for_text,
             text_objects=[_default_text_object()],
+            tag_enabled=True,
+            tag_language="en-US",
+        )
+        tagged_info = await client.query_pdf_info(
+            response.output_file,
+            queries="tagged",
         )
 
     assert response.output_files
@@ -105,6 +115,7 @@ async def test_live_async_add_text_to_pdf(
     assert output_file.size > 0
     assert response.warning is None
     assert uploaded_pdf_for_text.id in response.input_ids
+    assert tagged_info.tagged is True
 
 
 def test_live_add_text_to_pdf_invalid_page(

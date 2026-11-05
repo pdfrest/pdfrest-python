@@ -10,6 +10,7 @@ from pydantic_core import to_json
 
 from pdfrest import AsyncPdfRestClient, PdfRestClient
 from pdfrest.models import PdfRestFileBasedResponse, PdfRestFileID
+from pdfrest.models._internal import PdfAddTextPayload
 
 from .graphics_test_helpers import (
     ASYNC_API_KEY,
@@ -62,6 +63,97 @@ def _serialize_text_object_for_request(
     return serialized
 
 
+@pytest.mark.parametrize(
+    ("tag_language", "expected_language"),
+    [
+        pytest.param("en", "en", id="language"),
+        pytest.param("EN-us", "EN-us", id="region"),
+        pytest.param("zh-hant", "zh-hant", id="script"),
+        pytest.param("es-419", "es-419", id="numeric-region"),
+        pytest.param("eng-US", "eng-US", id="alpha3-language"),
+        pytest.param("zz", "zz", id="service-compatible-language"),
+        pytest.param("en-AB", "en-AB", id="service-compatible-region"),
+    ],
+)
+def test_add_text_payload_serializes_tag_controls(
+    tag_language: str,
+    expected_language: str,
+) -> None:
+    pdf_file = make_pdf_file(PdfRestFileID.generate(1))
+    text_object = make_text_object()
+
+    payload = PdfAddTextPayload.model_validate(
+        {
+            "files": pdf_file,
+            "text_objects": text_object,
+            "tag_enabled": True,
+            "tag_language": tag_language,
+            "output": "tagged-text",
+        }
+    ).model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
+
+    assert payload == {
+        "id": str(pdf_file.id),
+        "text_objects": to_json(
+            [_serialize_text_object_for_request(text_object)]
+        ).decode(),
+        "tag_enabled": True,
+        "tag_language": expected_language,
+        "output": "tagged-text",
+    }
+
+
+def test_add_text_payload_omits_unspecified_tag_controls() -> None:
+    payload = PdfAddTextPayload.model_validate(
+        {
+            "files": make_pdf_file(PdfRestFileID.generate(1)),
+            "text_objects": make_text_object(),
+        }
+    ).model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
+
+    assert "tag_enabled" not in payload
+    assert "tag_language" not in payload
+
+
+def test_add_text_payload_omits_explicit_none_tag_controls() -> None:
+    payload = PdfAddTextPayload.model_validate(
+        {
+            "files": make_pdf_file(PdfRestFileID.generate(1)),
+            "text_objects": make_text_object(),
+            "tag_enabled": None,
+            "tag_language": None,
+        }
+    ).model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
+
+    assert "tag_enabled" not in payload
+    assert "tag_language" not in payload
+
+
+@pytest.mark.parametrize(
+    "tag_language",
+    [
+        pytest.param("", id="empty"),
+        pytest.param("e", id="short-language"),
+        pytest.param("english", id="long-language"),
+        pytest.param("en_US", id="underscore"),
+        pytest.param("en-Latn-US", id="multiple-subtags"),
+    ],
+)
+def test_add_text_payload_rejects_invalid_tag_language(tag_language: str) -> None:
+    with pytest.raises(
+        ValidationError,
+        match="tag_language must be a valid BCP 47 language tag",
+    ):
+        PdfAddTextPayload.model_validate(
+            {
+                "files": make_pdf_file(PdfRestFileID.generate(1)),
+                "text_objects": make_text_object(),
+                "tag_enabled": True,
+                "tag_language": tag_language,
+            }
+        )
+
+
 def test_add_text_to_pdf_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PDFREST_API_KEY", raising=False)
     pdf_file = make_pdf_file(PdfRestFileID.generate(1))
@@ -73,18 +165,17 @@ def test_add_text_to_pdf_success(monkeypatch: pytest.MonkeyPatch) -> None:
         if request.method == "POST" and request.url.path == "/pdf-with-added-text":
             seen["post"] += 1
             payload = json.loads(request.content.decode("utf-8"))
-            assert payload["id"] == str(pdf_file.id)
-            assert payload["output"] == "with-text"
-            assert (
-                payload["text_objects"]
-                == to_json(
+            assert payload == {
+                "id": str(pdf_file.id),
+                "text_objects": to_json(
                     [
                         _serialize_text_object_for_request(
                             make_text_object(is_right_to_left=True)
                         )
                     ]
-                ).decode()
-            )
+                ).decode(),
+                "output": "with-text",
+            }
             return httpx.Response(
                 200,
                 json={
@@ -136,6 +227,8 @@ def test_add_text_to_pdf_request_customization(
             assert request.headers["X-Debug"] == "1"
             payload = json.loads(request.content.decode("utf-8"))
             assert payload["rotation"] == 15
+            assert payload["tag_enabled"] is True
+            assert payload["tag_language"] == "es-419"
             assert (
                 payload["text_objects"]
                 == to_json(
@@ -169,6 +262,8 @@ def test_add_text_to_pdf_request_customization(
         response = client.add_text_to_pdf(
             pdf_file,
             text_objects=[make_text_object(rotation=15)],
+            tag_enabled=True,
+            tag_language="es-419",
             extra_query={"trace": "true"},
             extra_headers={"X-Debug": "1"},
             extra_body={
@@ -190,6 +285,57 @@ def test_add_text_to_pdf_request_customization(
         )
     else:
         assert timeout_value == pytest.approx(0.25)
+
+
+def test_add_text_to_pdf_requires_tagging_for_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        pytest.fail("Request should not be sent when validation fails.")
+
+    with (
+        PdfRestClient(
+            api_key=VALID_API_KEY,
+            transport=httpx.MockTransport(handler),
+        ) as client,
+        pytest.raises(
+            ValidationError,
+            match=re.escape("tag_enabled must be true when tag options are provided."),
+        ),
+    ):
+        client.add_text_to_pdf(
+            make_pdf_file(PdfRestFileID.generate(1)),
+            text_objects=make_text_object(),
+            tag_language="en-US",
+        )
+
+
+def test_add_text_to_pdf_rejects_invalid_tag_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        pytest.fail("Request should not be sent when validation fails.")
+
+    with (
+        PdfRestClient(
+            api_key=VALID_API_KEY,
+            transport=httpx.MockTransport(handler),
+        ) as client,
+        pytest.raises(
+            ValidationError,
+            match="tag_language must be a valid BCP 47 language tag",
+        ),
+    ):
+        client.add_text_to_pdf(
+            make_pdf_file(PdfRestFileID.generate(1)),
+            text_objects=make_text_object(),
+            tag_enabled=True,
+            tag_language="en-Latn-US",
+        )
 
 
 def test_add_text_to_pdf_requires_color(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -348,18 +494,17 @@ async def test_async_add_text_to_pdf_success(
         if request.method == "POST" and request.url.path == "/pdf-with-added-text":
             seen["post"] += 1
             payload = json.loads(request.content.decode("utf-8"))
-            assert payload["id"] == str(pdf_file.id)
-            assert payload["output"] == "async-with-text"
-            assert (
-                payload["text_objects"]
-                == to_json(
+            assert payload == {
+                "id": str(pdf_file.id),
+                "text_objects": to_json(
                     [
                         _serialize_text_object_for_request(
                             make_text_object(page="all", is_right_to_left=True)
                         )
                     ]
-                ).decode()
-            )
+                ).decode(),
+                "output": "async-with-text",
+            }
             return httpx.Response(
                 200,
                 json={
@@ -408,6 +553,8 @@ async def test_async_add_text_to_pdf_request_customization(
             assert request.headers["X-Test"] == "async"
             payload = json.loads(request.content.decode("utf-8"))
             assert payload["text_size"] == 18
+            assert payload["tag_enabled"] is True
+            assert payload["tag_language"] == "es-419"
             assert (
                 payload["text_objects"]
                 == to_json(
@@ -441,6 +588,8 @@ async def test_async_add_text_to_pdf_request_customization(
         response = await client.add_text_to_pdf(
             pdf_file,
             text_objects=[make_text_object(text_size=18)],
+            tag_enabled=True,
+            tag_language="es-419",
             extra_query={"trace": "true"},
             extra_headers={"X-Test": "async"},
             extra_body={
@@ -461,6 +610,56 @@ async def test_async_add_text_to_pdf_request_customization(
         )
     else:
         assert timeout_value == pytest.approx(1.0)
+
+
+@pytest.mark.asyncio
+async def test_async_add_text_to_pdf_requires_tagging_for_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        pytest.fail("Request should not be sent when validation fails.")
+
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY,
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        with pytest.raises(
+            ValidationError,
+            match=re.escape("tag_enabled must be true when tag options are provided."),
+        ):
+            await client.add_text_to_pdf(
+                make_pdf_file(PdfRestFileID.generate(1)),
+                text_objects=make_text_object(),
+                tag_enabled=False,
+                tag_language="en-US",
+            )
+
+
+@pytest.mark.asyncio
+async def test_async_add_text_to_pdf_rejects_invalid_tag_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        pytest.fail("Request should not be sent when validation fails.")
+
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY,
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        with pytest.raises(
+            ValidationError,
+            match="tag_language must be a valid BCP 47 language tag",
+        ):
+            await client.add_text_to_pdf(
+                make_pdf_file(PdfRestFileID.generate(1)),
+                text_objects=make_text_object(),
+                tag_enabled=True,
+                tag_language="en_US",
+            )
 
 
 @pytest.mark.asyncio

@@ -3434,6 +3434,8 @@ class PdfRestClient(_SyncApiClient):
         file: PdfRestFile | Sequence[PdfRestFile],
         *,
         text_objects: PdfAddTextObject | Sequence[PdfAddTextObject],
+        tag_enabled: bool | None = None,
+        tag_language: str | None = None,
         output: str | None = None,
         extra_query: Query | None = None,
         extra_headers: AnyMapping | None = None,
@@ -3442,11 +3444,16 @@ class PdfRestClient(_SyncApiClient):
     ) -> PdfRestFileBasedResponse:
         """Insert one or more text blocks into a PDF.
 
-        Places one or more text overlays onto a PDF with font, size, color, opacity, position, and rotation controls. This supports annotations, stamps, and templated labeling workflows.
+        Places one or more text overlays onto a PDF with font, size, color,
+        opacity, position, rotation, and accessibility tagging controls. Set
+        ``tag_enabled=True`` when supplying ``tag_language``.
 
         Args:
             file: Uploaded input file or files as `PdfRestFile` objects.
             text_objects: Text overlay objects to draw onto the document.
+            tag_enabled: Enable tagging for newly added text.
+            tag_language: BCP 47 language tag for newly added tagged text.
+                Requires ``tag_enabled=True``.
             output: Output filename prefix used by pdfRest when creating files.
             extra_query: Additional query parameters merged into the request.
             extra_headers: Additional HTTP headers merged into the request.
@@ -3464,6 +3471,10 @@ class PdfRestClient(_SyncApiClient):
             "files": file,
             "text_objects": text_objects,
         }
+        if tag_enabled is not None:
+            payload["tag_enabled"] = tag_enabled
+        if tag_language is not None:
+            payload["tag_language"] = tag_language
         if output is not None:
             payload["output"] = output
 
@@ -7101,6 +7112,8 @@ class AsyncPdfRestClient(_AsyncApiClient):
         file: PdfRestFile | Sequence[PdfRestFile],
         *,
         text_objects: PdfAddTextObject | Sequence[PdfAddTextObject],
+        tag_enabled: bool | None = None,
+        tag_language: str | None = None,
         output: str | None = None,
         extra_query: Query | None = None,
         extra_headers: AnyMapping | None = None,
@@ -7109,11 +7122,16 @@ class AsyncPdfRestClient(_AsyncApiClient):
     ) -> PdfRestFileBasedResponse:
         """Asynchronous variant of [PdfRestClient.add_text_to_pdf][pdfrest.PdfRestClient.add_text_to_pdf].
 
-        Places one or more text overlays onto a PDF with font, size, color, opacity, position, and rotation controls. This supports annotations, stamps, and templated labeling workflows.
+        Places one or more text overlays onto a PDF with font, size, color,
+        opacity, position, rotation, and accessibility tagging controls. Set
+        ``tag_enabled=True`` when supplying ``tag_language``.
 
         Args:
             file: Uploaded input file or files as `PdfRestFile` objects.
             text_objects: Text overlay objects to draw onto the document.
+            tag_enabled: Enable tagging for newly added text.
+            tag_language: BCP 47 language tag for newly added tagged text.
+                Requires ``tag_enabled=True``.
             output: Output filename prefix used by pdfRest when creating files.
             extra_query: Additional query parameters merged into the request.
             extra_headers: Additional HTTP headers merged into the request.
@@ -7131,6 +7149,10 @@ class AsyncPdfRestClient(_AsyncApiClient):
             "files": file,
             "text_objects": text_objects,
         }
+        if tag_enabled is not None:
+            payload["tag_enabled"] = tag_enabled
+        if tag_language is not None:
+            payload["tag_language"] = tag_language
         if output is not None:
             payload["output"] = output
 

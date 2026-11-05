@@ -2934,6 +2934,16 @@ class PdfAddTextObjectModel(BaseModel):
         return self
 
 
+def _validate_tag_language(value: str) -> str:
+    if not re.fullmatch(r"[A-Za-z]{2,3}(?:-(?:[A-Za-z]{4}|[A-Za-z]{2}|\d{3}))?", value):
+        msg = "tag_language must be a valid BCP 47 language tag, such as en-US."
+        raise ValueError(msg)
+    return value
+
+
+_TagLanguage = Annotated[str, AfterValidator(_validate_tag_language)]
+
+
 class PdfAddTextPayload(BaseModel):
     """Adapt caller options into a pdfRest-ready add-text request payload."""
 
@@ -2960,11 +2970,26 @@ class PdfAddTextPayload(BaseModel):
         BeforeValidator(_ensure_list),
         PlainSerializer(_serialize_text_objects),
     ]
+    tag_enabled: Annotated[
+        bool | None,
+        Field(serialization_alias="tag_enabled", default=None),
+    ] = None
+    tag_language: Annotated[
+        _TagLanguage | None,
+        Field(serialization_alias="tag_language", default=None),
+    ] = None
     output: Annotated[
         str | None,
         Field(serialization_alias="output", min_length=1, default=None),
         AfterValidator(_validate_output_prefix),
     ] = None
+
+    @model_validator(mode="after")
+    def _require_tagging_for_language(self) -> PdfAddTextPayload:
+        if self.tag_language is not None and self.tag_enabled is not True:
+            msg = "tag_enabled must be true when tag options are provided."
+            raise ValueError(msg)
+        return self
 
 
 class _PdfAddedShapeBaseModel(BaseModel):
