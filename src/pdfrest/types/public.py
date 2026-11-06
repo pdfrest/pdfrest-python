@@ -29,6 +29,7 @@ __all__ = (
     "JpegColorModel",
     "OcrLanguage",
     "PdfAType",
+    "PdfAddImageObject",
     "PdfAddLineObject",
     "PdfAddRectangleObject",
     "PdfAddShapeObject",
@@ -782,7 +783,7 @@ PdfContentStructureType: TypeAlias = Literal[
 ]
 """Semantic PDF structure type assigned to newly added content.
 
-Shape tagging requires ``tag_enabled=True`` on the client method. These are
+Content tagging requires ``tag_enabled=True`` on the client method. These are
 the closed set accepted by the service, rather than arbitrary custom roles.
 Meanings follow the [standard PDF structure elements](https://pdfa.org/wp-content/uploads/2019/06/TaggedPDFBestPracticeGuideSyntax.pdf).
 
@@ -816,6 +817,45 @@ Accepted values:
 - `Formula`: Mathematical expression.
 - `Form`: Form widget grouping.
 """
+
+
+class PdfAddImageObject(TypedDict, total=False):
+    """One image placement accepted by the batch image-overlay helper.
+
+    See [pdfrest.PdfRestClient.add_images_to_pdf][].
+
+    Attributes:
+        image: Required uploaded JPEG, PNG, TIFF, or GIF resource. The client
+            serializes its resource ID into the nested ``image_id`` field.
+        page: Required page selector. Accepts a positive one-based page number,
+            ``"all"``, ``"last"``, comma-separated pages, or ascending ranges
+            such as ``"2-4,6-last"``.
+        x: Required horizontal position of the image's lower-left corner in PDF
+            points. Must be at least 0.
+        y: Required vertical position of the image's lower-left corner in PDF
+            points. Must be at least 0.
+        width: Optional placed width in PDF points. Must be greater than 0. If
+            height is omitted, the image scales proportionally.
+        height: Optional placed height in PDF points. Must be greater than 0. If
+            width is omitted, the image scales proportionally.
+        tag_alt_text: Optional non-empty alternate text. Requires
+            ``tag_enabled=True`` on the client method.
+        tag_is_artifact: Optional marker for decorative content. Requires
+            ``tag_enabled=True`` on the client method.
+        tag_structure_type: Optional semantic PDF structure type. ``"Figure"``
+            is normally appropriate. Requires ``tag_enabled=True`` on the client
+            method.
+    """
+
+    image: Required[PdfRestFile]
+    page: Required[int | str]
+    x: Required[int]
+    y: Required[int]
+    width: float
+    height: float
+    tag_alt_text: str
+    tag_is_artifact: bool
+    tag_structure_type: PdfContentStructureType
 
 
 class PdfAddLineObject(TypedDict, total=False):

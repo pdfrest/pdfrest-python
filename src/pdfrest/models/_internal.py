@@ -3200,11 +3200,205 @@ class PdfAddImagePayload(BaseModel):
     x: Annotated[int, Field(serialization_alias="x")]
     y: Annotated[int, Field(serialization_alias="y")]
     page: Annotated[int, Field(serialization_alias="page", ge=1)]
+    width: Annotated[
+        _PositiveFiniteNumber | None,
+        Field(serialization_alias="width", default=None),
+    ] = None
+    height: Annotated[
+        _PositiveFiniteNumber | None,
+        Field(serialization_alias="height", default=None),
+    ] = None
+    tag_enabled: Annotated[
+        bool | None,
+        Field(serialization_alias="tag_enabled", default=None),
+    ] = None
+    tag_language: Annotated[
+        _TagLanguage | None,
+        Field(serialization_alias="tag_language", default=None),
+    ] = None
+    tag_alt_text: Annotated[
+        str | None,
+        Field(serialization_alias="tag_alt_text", min_length=1, default=None),
+    ] = None
+    tag_is_artifact: Annotated[
+        bool | None,
+        Field(serialization_alias="tag_is_artifact", default=None),
+    ] = None
+    tag_structure_type: Annotated[
+        PdfContentStructureType | None,
+        Field(serialization_alias="tag_structure_type", default=None),
+    ] = None
     output: Annotated[
         str | None,
         Field(serialization_alias="output", min_length=1, default=None),
         AfterValidator(_validate_output_prefix),
     ] = None
+
+    @model_validator(mode="after")
+    def _require_tagging_for_metadata(self) -> PdfAddImagePayload:
+        has_tag_metadata = any(
+            value is not None
+            for value in (
+                self.tag_language,
+                self.tag_alt_text,
+                self.tag_is_artifact,
+                self.tag_structure_type,
+            )
+        )
+        if has_tag_metadata and self.tag_enabled is not True:
+            msg = "tag_enabled must be true when tag options are provided."
+            raise ValueError(msg)
+        return self
+
+
+_ImagePageNumber = Annotated[int, Field(ge=1)]
+_ImagePageRangeTuple = Annotated[
+    tuple[_ImagePageNumber, _ImagePageNumber]
+    | tuple[_ImagePageNumber, Literal["last"]],
+    BeforeValidator(_split_page_range_tuple),
+    AfterValidator(_ascending_page_range),
+]
+_ImagePageRange = _ImagePageNumber | Literal["last"] | _ImagePageRangeTuple
+_ImagePageSelections = Annotated[list[_ImagePageRange], Field(min_length=1)]
+_ImagePageSelectorValue = Literal["all"] | _ImagePageNumber | _ImagePageSelections
+
+
+def _split_image_page_selector(value: Any) -> Any:
+    if isinstance(value, bool):
+        msg = "Image page selectors must be a positive integer or string expression."
+        raise ValueError(msg)  # noqa: TRY004 - Pydantic must surface ValidationError.
+    if isinstance(value, int):
+        return value
+    if not isinstance(value, str):
+        msg = "Image page selectors must be a positive integer or string expression."
+        raise ValueError(msg)  # noqa: TRY004 - Pydantic must surface ValidationError.
+    normalized = value.strip().casefold()
+    if normalized == "all":
+        return normalized
+    return [selection.strip() for selection in normalized.split(",")]
+
+
+def _serialize_image_page_selector(value: _ImagePageSelectorValue) -> str | int:
+    if isinstance(value, list):
+        return _serialize_page_ranges(value)
+    return value
+
+
+_ImagePageSelector = Annotated[
+    _ImagePageSelectorValue,
+    BeforeValidator(_split_image_page_selector),
+    PlainSerializer(_serialize_image_page_selector),
+]
+
+
+class PdfAddedImageObjectModel(BaseModel):
+    """Adapt one uploaded image placement into the pdfRest JSON contract."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    image: Annotated[
+        list[PdfRestFile],
+        Field(
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("image", "image_id"),
+            serialization_alias="image_id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types(
+                "image/jpeg",
+                "image/png",
+                "image/tiff",
+                "image/gif",
+                error_msg="Image must be JPEG, PNG, TIFF, or GIF",
+            )
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    page: Annotated[_ImagePageSelector, Field(serialization_alias="page")]
+    x: Annotated[int, Field(serialization_alias="x", ge=0, strict=True)]
+    y: Annotated[int, Field(serialization_alias="y", ge=0, strict=True)]
+    width: Annotated[
+        _PositiveFiniteNumber | None,
+        Field(serialization_alias="width", default=None),
+    ] = None
+    height: Annotated[
+        _PositiveFiniteNumber | None,
+        Field(serialization_alias="height", default=None),
+    ] = None
+    tag_alt_text: Annotated[
+        str | None,
+        Field(serialization_alias="tag_alt_text", min_length=1, default=None),
+    ] = None
+    tag_is_artifact: Annotated[
+        bool | None,
+        Field(serialization_alias="tag_is_artifact", default=None),
+    ] = None
+    tag_structure_type: Annotated[
+        PdfContentStructureType | None,
+        Field(serialization_alias="tag_structure_type", default=None),
+    ] = None
+
+
+def _serialize_image_objects(
+    value: list[PdfAddedImageObjectModel],
+) -> list[dict[str, Any]]:
+    return [
+        entry.model_dump(mode="json", by_alias=True, exclude_none=True)
+        for entry in value
+    ]
+
+
+class PdfAddImagesPayload(BaseModel):
+    """Adapt typed image placements into a pdfRest batch add-image request."""
+
+    files: Annotated[
+        list[PdfRestFile],
+        Field(
+            min_length=1,
+            max_length=1,
+            validation_alias=AliasChoices("file", "files"),
+            serialization_alias="id",
+        ),
+        BeforeValidator(_ensure_list),
+        AfterValidator(
+            _allowed_mime_types("application/pdf", error_msg="Must be a PDF file")
+        ),
+        PlainSerializer(_serialize_as_first_file_id),
+    ]
+    image_objects: Annotated[
+        list[PdfAddedImageObjectModel],
+        Field(serialization_alias="image_objects", min_length=1),
+        BeforeValidator(_ensure_list),
+        PlainSerializer(_serialize_image_objects),
+    ]
+    tag_enabled: Annotated[
+        bool | None,
+        Field(serialization_alias="tag_enabled", default=None),
+    ] = None
+    tag_language: Annotated[
+        _TagLanguage | None,
+        Field(serialization_alias="tag_language", default=None),
+    ] = None
+    output: Annotated[
+        str | None,
+        Field(serialization_alias="output", min_length=1, default=None),
+        AfterValidator(_validate_output_prefix),
+    ] = None
+
+    @model_validator(mode="after")
+    def _require_tagging_for_metadata(self) -> PdfAddImagesPayload:
+        has_tag_metadata = self.tag_language is not None or any(
+            image.tag_alt_text is not None
+            or image.tag_is_artifact is not None
+            or image.tag_structure_type is not None
+            for image in self.image_objects
+        )
+        if has_tag_metadata and self.tag_enabled is not True:
+            msg = "tag_enabled must be true when tag options are provided."
+            raise ValueError(msg)
+        return self
 
 
 class _BasePdfWatermarkPayload(BaseModel):

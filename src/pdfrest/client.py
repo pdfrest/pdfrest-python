@@ -98,6 +98,7 @@ from .models._internal import (
     OcrPdfPayload,
     PdfAddAttachmentPayload,
     PdfAddImagePayload,
+    PdfAddImagesPayload,
     PdfAddShapesPayload,
     PdfAddTextPayload,
     PdfBlankPayload,
@@ -156,9 +157,11 @@ from .types import (
     HtmlWebLayout,
     JpegColorModel,
     OcrLanguage,
+    PdfAddImageObject,
     PdfAddShapeObject,
     PdfAddTextObject,
     PdfAType,
+    PdfContentStructureType,
     PdfConversionCompression,
     PdfConversionDownsample,
     PdfConversionLocale,
@@ -3549,22 +3552,43 @@ class PdfRestClient(_SyncApiClient):
         x: int,
         y: int,
         page: int,
+        width: float | None = None,
+        height: float | None = None,
+        tag_enabled: bool | None = None,
+        tag_language: str | None = None,
+        tag_alt_text: str | None = None,
+        tag_is_artifact: bool | None = None,
+        tag_structure_type: PdfContentStructureType | None = None,
         output: str | None = None,
         extra_query: Query | None = None,
         extra_headers: AnyMapping | None = None,
         extra_body: Body | None = None,
         timeout: TimeoutTypes | None = None,
     ) -> PdfRestFileBasedResponse:
-        """Insert an image into a single page of a PDF.
+        """Insert one image into a single page of a PDF.
 
-        Places an uploaded image onto target pages in a PDF with size/position controls. This is commonly used for logos, seals, and branding overlays.
+        This backward-compatible helper is intended for one image placement. Use
+        [add_images_to_pdf][pdfrest.PdfRestClient.add_images_to_pdf] for multiple
+        images, page expressions, or repeated placements.
 
         Args:
             file: Uploaded input file or files as `PdfRestFile` objects.
-            image: Image/PDF resource to place into the source document.
+            image: Uploaded JPEG, PNG, TIFF, or GIF resource to place.
             x: Horizontal position in PDF points.
             y: Vertical position in PDF points.
-            page: Target page number (or selector) where inserted content should be applied.
+            page: Positive one-based target page number.
+            width: Optional placed width in PDF points. Must be greater than 0.
+            height: Optional placed height in PDF points. Must be greater than 0.
+            tag_enabled: Whether to tag the added image. Must be true when any
+                other tag option is provided.
+            tag_language: Optional BCP 47 language tag, such as ``"en-US"``.
+                Requires ``tag_enabled=True``.
+            tag_alt_text: Optional non-empty alternate text. Requires
+                ``tag_enabled=True``.
+            tag_is_artifact: Whether the image is decorative. Requires
+                ``tag_enabled=True`` when provided.
+            tag_structure_type: Optional semantic PDF structure type. ``"Figure"``
+                is normally appropriate. Requires ``tag_enabled=True``.
             output: Output filename prefix used by pdfRest when creating files.
             extra_query: Additional query parameters merged into the request.
             extra_headers: Additional HTTP headers merged into the request.
@@ -3585,6 +3609,18 @@ class PdfRestClient(_SyncApiClient):
             "y": y,
             "page": page,
         }
+        optional_payload = {
+            "width": width,
+            "height": height,
+            "tag_enabled": tag_enabled,
+            "tag_language": tag_language,
+            "tag_alt_text": tag_alt_text,
+            "tag_is_artifact": tag_is_artifact,
+            "tag_structure_type": tag_structure_type,
+        }
+        payload.update(
+            {key: value for key, value in optional_payload.items() if value is not None}
+        )
         if output is not None:
             payload["output"] = output
 
@@ -3592,6 +3628,67 @@ class PdfRestClient(_SyncApiClient):
             endpoint="/pdf-with-added-image",
             payload=payload,
             payload_model=PdfAddImagePayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    def add_images_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        image_objects: PdfAddImageObject | Sequence[PdfAddImageObject],
+        tag_enabled: bool | None = None,
+        tag_language: str | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Insert one or more uploaded images using typed placement objects.
+
+        Each object can select one or more pages, size its image, and provide
+        image-specific accessibility metadata. Reuse the same ``PdfRestFile`` in
+        multiple objects to place one uploaded image more than once.
+
+        Args:
+            file: One uploaded PDF to modify.
+            image_objects: One placement object or a non-empty sequence of
+                placement objects.
+            tag_enabled: Whether to tag the added images. Must be true when
+                ``tag_language`` or per-image tag metadata is provided.
+            tag_language: Optional BCP 47 language tag for image metadata, such
+                as ``"en-US"``. Requires ``tag_enabled=True``.
+            output: Output filename prefix used by pdfRest when creating files.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response returned by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "image_objects": image_objects,
+        }
+        if tag_enabled is not None:
+            payload["tag_enabled"] = tag_enabled
+        if tag_language is not None:
+            payload["tag_language"] = tag_language
+        if output is not None:
+            payload["output"] = output
+
+        return self._post_file_operation(
+            endpoint="/pdf-with-added-image",
+            payload=payload,
+            payload_model=PdfAddImagesPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
@@ -7227,6 +7324,13 @@ class AsyncPdfRestClient(_AsyncApiClient):
         x: int,
         y: int,
         page: int,
+        width: float | None = None,
+        height: float | None = None,
+        tag_enabled: bool | None = None,
+        tag_language: str | None = None,
+        tag_alt_text: str | None = None,
+        tag_is_artifact: bool | None = None,
+        tag_structure_type: PdfContentStructureType | None = None,
         output: str | None = None,
         extra_query: Query | None = None,
         extra_headers: AnyMapping | None = None,
@@ -7235,14 +7339,28 @@ class AsyncPdfRestClient(_AsyncApiClient):
     ) -> PdfRestFileBasedResponse:
         """Asynchronous variant of [PdfRestClient.add_image_to_pdf][pdfrest.PdfRestClient.add_image_to_pdf].
 
-        Places an uploaded image onto target pages in a PDF with size/position controls. This is commonly used for logos, seals, and branding overlays.
+        This backward-compatible helper is intended for one image placement. Use
+        [add_images_to_pdf][pdfrest.AsyncPdfRestClient.add_images_to_pdf] for
+        multiple images, page expressions, or repeated placements.
 
         Args:
             file: Uploaded input file or files as `PdfRestFile` objects.
-            image: Image/PDF resource to place into the source document.
+            image: Uploaded JPEG, PNG, TIFF, or GIF resource to place.
             x: Horizontal position in PDF points.
             y: Vertical position in PDF points.
-            page: Target page number (or selector) where inserted content should be applied.
+            page: Positive one-based target page number.
+            width: Optional placed width in PDF points. Must be greater than 0.
+            height: Optional placed height in PDF points. Must be greater than 0.
+            tag_enabled: Whether to tag the added image. Must be true when any
+                other tag option is provided.
+            tag_language: Optional BCP 47 language tag, such as ``"en-US"``.
+                Requires ``tag_enabled=True``.
+            tag_alt_text: Optional non-empty alternate text. Requires
+                ``tag_enabled=True``.
+            tag_is_artifact: Whether the image is decorative. Requires
+                ``tag_enabled=True`` when provided.
+            tag_structure_type: Optional semantic PDF structure type. ``"Figure"``
+                is normally appropriate. Requires ``tag_enabled=True``.
             output: Output filename prefix used by pdfRest when creating files.
             extra_query: Additional query parameters merged into the request.
             extra_headers: Additional HTTP headers merged into the request.
@@ -7263,6 +7381,18 @@ class AsyncPdfRestClient(_AsyncApiClient):
             "y": y,
             "page": page,
         }
+        optional_payload = {
+            "width": width,
+            "height": height,
+            "tag_enabled": tag_enabled,
+            "tag_language": tag_language,
+            "tag_alt_text": tag_alt_text,
+            "tag_is_artifact": tag_is_artifact,
+            "tag_structure_type": tag_structure_type,
+        }
+        payload.update(
+            {key: value for key, value in optional_payload.items() if value is not None}
+        )
         if output is not None:
             payload["output"] = output
 
@@ -7270,6 +7400,63 @@ class AsyncPdfRestClient(_AsyncApiClient):
             endpoint="/pdf-with-added-image",
             payload=payload,
             payload_model=PdfAddImagePayload,
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+
+    async def add_images_to_pdf(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        image_objects: PdfAddImageObject | Sequence[PdfAddImageObject],
+        tag_enabled: bool | None = None,
+        tag_language: str | None = None,
+        output: str | None = None,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> PdfRestFileBasedResponse:
+        """Asynchronous variant of [PdfRestClient.add_images_to_pdf][pdfrest.PdfRestClient.add_images_to_pdf].
+
+        Args:
+            file: One uploaded PDF to modify.
+            image_objects: One placement object or a non-empty sequence of
+                placement objects.
+            tag_enabled: Whether to tag the added images. Must be true when
+                ``tag_language`` or per-image tag metadata is provided.
+            tag_language: Optional BCP 47 language tag for image metadata, such
+                as ``"en-US"``. Requires ``tag_enabled=True``.
+            output: Output filename prefix used by pdfRest when creating files.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Validated file-based response returned by pdfRest.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "image_objects": image_objects,
+        }
+        if tag_enabled is not None:
+            payload["tag_enabled"] = tag_enabled
+        if tag_language is not None:
+            payload["tag_language"] = tag_language
+        if output is not None:
+            payload["output"] = output
+
+        return await self._post_file_operation(
+            endpoint="/pdf-with-added-image",
+            payload=payload,
+            payload_model=PdfAddImagesPayload,
             extra_query=extra_query,
             extra_headers=extra_headers,
             extra_body=extra_body,
