@@ -82,9 +82,12 @@ Use this group to add visible content or remove sensitive content.
 - Add overlays:
   [add_text_to_pdf][pdfrest.PdfRestClient.add_text_to_pdf],
   [add_image_to_pdf][pdfrest.PdfRestClient.add_image_to_pdf],
+  [add_images_to_pdf][pdfrest.PdfRestClient.add_images_to_pdf],
   [add_shapes_to_pdf][pdfrest.PdfRestClient.add_shapes_to_pdf]
-  (`add_text_to_pdf` can tag newly added text and identify its natural language
-  for assistive technology)
+  (`add_image_to_pdf` preserves the concise single-image workflow, while
+  `add_images_to_pdf` accepts typed placements for multiple or reused uploaded
+  images; image and text overlays can include accessibility tagging and a BCP 47
+  language tag)
 - Watermarking:
   [watermark_pdf_with_text][pdfrest.PdfRestClient.watermark_pdf_with_text],
   [watermark_pdf_with_image][pdfrest.PdfRestClient.watermark_pdf_with_image]
