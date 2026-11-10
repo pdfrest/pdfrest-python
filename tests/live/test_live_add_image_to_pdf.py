@@ -17,8 +17,27 @@ IMAGE_RESOURCE_VARIANTS = (
     pytest.param(("test.gif", "image/gif"), id="gif"),
 )
 
+_UNSUPPORTED_IMAGE_STRUCTURE_TYPES = frozenset({"Ruby", "Warichu"})
+_UNSUPPORTED_IMAGE_STRUCTURE_TYPE_REASON = (
+    "The deployed image-overlay service returns a fatal 400 for standalone "
+    "Ruby and Warichu structure elements."
+)
+
 CONTENT_STRUCTURE_TYPE_CASES = tuple(
-    pytest.param(value, id=value) for value in get_args(PdfContentStructureType)
+    pytest.param(
+        value,
+        marks=(
+            pytest.mark.xfail(
+                raises=PdfRestApiError,
+                reason=_UNSUPPORTED_IMAGE_STRUCTURE_TYPE_REASON,
+                strict=True,
+            )
+            if value in _UNSUPPORTED_IMAGE_STRUCTURE_TYPES
+            else ()
+        ),
+        id=value,
+    )
+    for value in get_args(PdfContentStructureType)
 )
 
 
