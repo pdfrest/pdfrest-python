@@ -21,6 +21,8 @@ supported interpreter matrix.
 
 ## Available Examples
 
+- `examples/add_images/add_images_to_pdf_example.py` – add multiple uploaded
+  images with typed placements, sizing, reuse, and accessibility metadata.
 - `examples/apply_tdm_reservation/apply_tdm_reservation_example.py` – embed a
   hosted TDM policy URL in an uploaded PDF.
 - `examples/set_pdf_page_boxes/set_pdf_page_boxes_example.py` – enlarge a PDF's
