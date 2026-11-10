@@ -149,7 +149,7 @@ body to the current API contract.
   adaptation.
 - Treat every existing public export as part of the compatibility surface, not
   only client methods. Preserve public type aliases at runtime and under static
-  type checking: equality, ``typing.get_origin()``, ``typing.get_args()``,
+  type checking: equality, `typing.get_origin()`, `typing.get_args()`,
   annotations, and assignability must remain equivalent to the base branch.
   Reusing or composing a public type is acceptable only when those observable
   contracts remain unchanged.
