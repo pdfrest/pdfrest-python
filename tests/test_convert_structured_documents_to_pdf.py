@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from typing import Any, cast, get_args
+from typing import Any, Literal, cast, get_args, get_origin
 
 import httpx
 import pytest
@@ -18,7 +18,6 @@ from pdfrest.models._internal import (
     ConvertXmlToPdfPayload,
 )
 from pdfrest.types import (
-    PdfKnownTextFont,
     PdfStructuredTextFontName,
     PdfStructuredTextKnownFont,
     PdfStructuredTextPageSetup,
@@ -45,7 +44,7 @@ NAMED_PAGE_SIZES = [
 ]
 KNOWN_FONTS = [
     pytest.param(value, id=value.replace(" ", "-"))
-    for value in (*get_args(PdfKnownTextFont), "webdings")
+    for value in get_args(PdfStructuredTextKnownFont)
 ]
 
 CSV_DELIMITERS = [
@@ -59,6 +58,12 @@ ALT_TEXT_VALUES = [
     pytest.param("\t", id="tab"),
     pytest.param("  Company logo  ", id="padded-text"),
 ]
+
+
+def test_structured_font_types_preserve_flat_literal_shape() -> None:
+    assert get_origin(PdfStructuredTextKnownFont) is Literal
+    assert all(isinstance(value, str) for value in get_args(PdfStructuredTextKnownFont))
+    assert get_args(PdfStructuredTextFontName) == (PdfStructuredTextKnownFont, str)
 
 
 def _dump_payload(model: BaseModel) -> dict[str, Any]:

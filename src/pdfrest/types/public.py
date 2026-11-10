@@ -350,9 +350,71 @@ Accepted values:
 PdfZugferdKnownFont: TypeAlias = PdfKnownTextFont
 """Published text-capable pdfRest font names for ZUGFeRD rendering.
 
-Accepted values are documented by ``PdfKnownTextFont``. These are suggestions,
-not a closed service catalog; ``PdfZugferdFontName`` also accepts other
-installed text-capable fonts.
+These are suggestions, not a closed service catalog. ``PdfZugferdFontName``
+also accepts other installed text-capable fonts.
+
+Accepted values:
+
+- `andalemono`: Andale Mono.
+- `arial`: Arial.
+- `arialitalic`: Arial Italic.
+- `arialbold`: Arial Bold.
+- `arialblack`: Arial Black.
+- `calibri`: Calibri.
+- `calibriitalic`: Calibri Italic.
+- `calibribold`: Calibri Bold.
+- `calibribolditalic`: Calibri Bold Italic.
+- `cambriaitalic`: Cambria Italic.
+- `cambriabold`: Cambria Bold.
+- `cambriabolditalic`: Cambria Bold Italic.
+- `candara`: Candara.
+- `candaraitalic`: Candara Italic.
+- `candarabold`: Candara Bold.
+- `candarabolditalic`: Candara Bold Italic.
+- `cantarellregular`: Cantarell.
+- `cantarelloblique`: Cantarell Oblique.
+- `cantarellbold`: Cantarell Bold.
+- `cantarellboldoblique`: Cantarell Bold Oblique.
+- `comicsans`: Comic Sans.
+- `comicsansbold`: Comic Sans Bold.
+- `constantia`: Constantia.
+- `consolas`: Consolas.
+- `consolasitalic`: Consolas Italic.
+- `consolasbold`: Consolas Bold.
+- `consolasbolditalic`: Consolas Bold Italic.
+- `constantiaitalic`: Constantia Italic.
+- `constantiabold`: Constantia Bold.
+- `constantiabolditalic`: Constantia Bold Italic.
+- `corbel`: Corbel.
+- `corbelitalic`: Corbel Italic.
+- `corbelbold`: Corbel Bold.
+- `corbelbolditalic`: Corbel Bold Italic.
+- `courier`: Courier New.
+- `courieritalic`: Courier New Italic.
+- `courierbold`: Courier New Bold.
+- `courierbolditalic`: Courier New Bold Italic.
+- `dejavu`: DejaVu Sans Mono.
+- `dejavu sans mono oblique`: DejaVu Sans Mono Oblique.
+- `dejavu sans mono bold`: DejaVu Sans Mono Bold.
+- `dejavu sans mono bold oblique`: DejaVu Sans Mono Bold Oblique.
+- `georgia`: Georgia.
+- `georgiaitalic`: Georgia Italic.
+- `georgiabold`: Georgia Bold.
+- `georgiabolditalic`: Georgia Bold Italic.
+- `impact`: Impact.
+- `tahoma`: Tahoma.
+- `timesnewroman`: Times New Roman.
+- `timesnewromanitalic`: Times New Roman Italic.
+- `timesnewromanbold`: Times New Roman Bold.
+- `timesnewromanbolditalic`: Times New Roman Bold Italic.
+- `trebuchet`: Trebuchet.
+- `trebuchetitalic`: Trebuchet Italic.
+- `trebuchetbold`: Trebuchet Bold.
+- `trebuchetbolditalic`: Trebuchet Bold Italic.
+- `verdana`: Verdana.
+- `verdanaitalic`: Verdana Italic.
+- `verdanabold`: Verdana Bold.
+- `verdanabolditalic`: Verdana Bold Italic.
 """
 
 PdfZugferdFontName: TypeAlias = PdfZugferdKnownFont | str
@@ -443,16 +505,137 @@ Accepted values:
 - `Tabloid`: Tabloid paper, 792 by 1224 PDF points.
 """
 
-PdfStructuredTextKnownFont: TypeAlias = PdfKnownTextFont | Literal["webdings"]
+PdfStructuredTextKnownFont: TypeAlias = Literal[
+    "andalemono",
+    "arial",
+    "arialitalic",
+    "arialbold",
+    "arialblack",
+    "calibri",
+    "calibriitalic",
+    "calibribold",
+    "calibribolditalic",
+    "cambriaitalic",
+    "cambriabold",
+    "cambriabolditalic",
+    "candara",
+    "candaraitalic",
+    "candarabold",
+    "candarabolditalic",
+    "cantarellregular",
+    "cantarelloblique",
+    "cantarellbold",
+    "cantarellboldoblique",
+    "comicsans",
+    "comicsansbold",
+    "constantia",
+    "consolas",
+    "consolasitalic",
+    "consolasbold",
+    "consolasbolditalic",
+    "constantiaitalic",
+    "constantiabold",
+    "constantiabolditalic",
+    "corbel",
+    "corbelitalic",
+    "corbelbold",
+    "corbelbolditalic",
+    "courier",
+    "courieritalic",
+    "courierbold",
+    "courierbolditalic",
+    "dejavu",
+    "dejavu sans mono oblique",
+    "dejavu sans mono bold",
+    "dejavu sans mono bold oblique",
+    "georgia",
+    "georgiaitalic",
+    "georgiabold",
+    "georgiabolditalic",
+    "impact",
+    "tahoma",
+    "timesnewroman",
+    "timesnewromanitalic",
+    "timesnewromanbold",
+    "timesnewromanbolditalic",
+    "trebuchet",
+    "trebuchetitalic",
+    "trebuchetbold",
+    "trebuchetbolditalic",
+    "verdana",
+    "verdanaitalic",
+    "verdanabold",
+    "verdanabolditalic",
+    "webdings",
+]
 """Published pdfRest font names for structured document conversion.
 
-This catalog combines every text-capable value documented by
-``PdfKnownTextFont`` with the structured-document-only symbol font.
-``PdfStructuredTextFontName`` also accepts deployment-specific installed fonts.
+These are suggestions, not a closed service catalog. An installed font name
+outside this list may also be used through ``PdfStructuredTextFontName``.
+See the [pdfRest Font List](https://pdfrest.com/documentation/fontlist/).
 
 Accepted values:
 
-- Every value documented by ``PdfKnownTextFont``: text-capable installed fonts.
+- `andalemono`: Andale Mono.
+- `arial`: Arial.
+- `arialitalic`: Arial Italic.
+- `arialbold`: Arial Bold.
+- `arialblack`: Arial Black.
+- `calibri`: Calibri.
+- `calibriitalic`: Calibri Italic.
+- `calibribold`: Calibri Bold.
+- `calibribolditalic`: Calibri Bold Italic.
+- `cambriaitalic`: Cambria Italic.
+- `cambriabold`: Cambria Bold.
+- `cambriabolditalic`: Cambria Bold Italic.
+- `candara`: Candara.
+- `candaraitalic`: Candara Italic.
+- `candarabold`: Candara Bold.
+- `candarabolditalic`: Candara Bold Italic.
+- `cantarellregular`: Cantarell.
+- `cantarelloblique`: Cantarell Oblique.
+- `cantarellbold`: Cantarell Bold.
+- `cantarellboldoblique`: Cantarell Bold Oblique.
+- `comicsans`: Comic Sans.
+- `comicsansbold`: Comic Sans Bold.
+- `constantia`: Constantia.
+- `consolas`: Consolas.
+- `consolasitalic`: Consolas Italic.
+- `consolasbold`: Consolas Bold.
+- `consolasbolditalic`: Consolas Bold Italic.
+- `constantiaitalic`: Constantia Italic.
+- `constantiabold`: Constantia Bold.
+- `constantiabolditalic`: Constantia Bold Italic.
+- `corbel`: Corbel.
+- `corbelitalic`: Corbel Italic.
+- `corbelbold`: Corbel Bold.
+- `corbelbolditalic`: Corbel Bold Italic.
+- `courier`: Courier New.
+- `courieritalic`: Courier New Italic.
+- `courierbold`: Courier New Bold.
+- `courierbolditalic`: Courier New Bold Italic.
+- `dejavu`: DejaVu Sans Mono.
+- `dejavu sans mono oblique`: DejaVu Sans Mono Oblique.
+- `dejavu sans mono bold`: DejaVu Sans Mono Bold.
+- `dejavu sans mono bold oblique`: DejaVu Sans Mono Bold Oblique.
+- `georgia`: Georgia.
+- `georgiaitalic`: Georgia Italic.
+- `georgiabold`: Georgia Bold.
+- `georgiabolditalic`: Georgia Bold Italic.
+- `impact`: Impact.
+- `tahoma`: Tahoma.
+- `timesnewroman`: Times New Roman.
+- `timesnewromanitalic`: Times New Roman Italic.
+- `timesnewromanbold`: Times New Roman Bold.
+- `timesnewromanbolditalic`: Times New Roman Bold Italic.
+- `trebuchet`: Trebuchet.
+- `trebuchetitalic`: Trebuchet Italic.
+- `trebuchetbold`: Trebuchet Bold.
+- `trebuchetbolditalic`: Trebuchet Bold Italic.
+- `verdana`: Verdana.
+- `verdanaitalic`: Verdana Italic.
+- `verdanabold`: Verdana Bold.
+- `verdanabolditalic`: Verdana Bold Italic.
 - `webdings`: Webdings.
 """
 
