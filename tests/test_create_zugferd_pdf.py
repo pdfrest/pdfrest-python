@@ -75,6 +75,7 @@ def _assert_response(
     output_id: PdfRestFileID,
     output_name: str,
 ) -> None:
+    assert isinstance(response, PdfRestFileBasedResponse)
     assert response.input_ids == input_ids
     assert response.warning is None
     assert len(response.output_files) == 1
@@ -161,17 +162,17 @@ def test_pdf_payload_maps_regeneration_permission_to_wire_field() -> None:
     }
 
 
-@pytest.mark.parametrize(
-    "field",
-    [
-        pytest.param("text_color", id="text"),
-        pytest.param("muted_text_color", id="muted-text"),
-        pytest.param("accent_color", id="accent"),
-        pytest.param("border_color", id="border"),
-        pytest.param("table_header_color", id="table-header"),
-        pytest.param("table_alternate_color", id="table-alternate"),
-    ],
+COLOR_FIELDS = (
+    "text_color",
+    "muted_text_color",
+    "accent_color",
+    "border_color",
+    "table_header_color",
+    "table_alternate_color",
 )
+
+
+@pytest.mark.parametrize("field", COLOR_FIELDS)
 @pytest.mark.parametrize(
     ("color", "wire_suffix"),
     [
@@ -202,6 +203,15 @@ def test_zugferd_payload_accepts_every_published_font(
         {"invoice": invoice, "render_options": {"font": font}},
     )
     assert payload["render_options"] == {"font": font}
+
+
+def test_zugferd_payload_accepts_unlisted_installed_font_name() -> None:
+    invoice = _make_file("invoice.xml", "application/xml")
+    payload = _dump(
+        PdfInvoiceXmlToZugferdPayload,
+        {"invoice": invoice, "render_options": {"font": "Noto Sans"}},
+    )
+    assert payload["render_options"] == {"font": "Noto Sans"}
 
 
 @pytest.mark.parametrize(
@@ -250,27 +260,64 @@ def test_zugferd_payload_accepts_every_closed_literal(field: str, value: str) ->
     assert payload["render_options"] == {field: value}
 
 
-@pytest.mark.parametrize(
-    "options",
-    [
-        pytest.param({"decimal_precision": 0}, id="precision-minimum"),
-        pytest.param({"decimal_precision": 4}, id="precision-maximum"),
-        pytest.param({"text_color": (0, 0, 0)}, id="rgb-minimum"),
-        pytest.param({"text_color": (255, 255, 255)}, id="rgb-maximum"),
-        pytest.param({"text_color": (0, 0, 0, 0)}, id="cmyk-minimum"),
-        pytest.param({"text_color": (100, 100, 100, 100)}, id="cmyk-maximum"),
-        pytest.param({"font": "x"}, id="font-minimum"),
-        pytest.param({"font": "x" * 200}, id="font-maximum"),
-        pytest.param({"footer_message": ""}, id="footer-empty"),
-        pytest.param({"footer_message": "x" * 500}, id="footer-maximum"),
-    ],
-)
-def test_zugferd_payload_accepts_constraint_boundaries(options: dict[str, Any]) -> None:
+VALID_RENDER_BOUNDARIES = [
+    pytest.param(
+        {"decimal_precision": 0},
+        {"decimal_precision": 0},
+        id="precision-minimum",
+    ),
+    pytest.param(
+        {"decimal_precision": 4},
+        {"decimal_precision": 4},
+        id="precision-maximum",
+    ),
+    pytest.param(
+        {"text_color": (0, 0, 0)},
+        {"text_color_rgb": [0, 0, 0]},
+        id="rgb-minimum",
+    ),
+    pytest.param(
+        {"text_color": (255, 255, 255)},
+        {"text_color_rgb": [255, 255, 255]},
+        id="rgb-maximum",
+    ),
+    pytest.param(
+        {"text_color": (0, 0, 0, 0)},
+        {"text_color_cmyk": [0, 0, 0, 0]},
+        id="cmyk-minimum",
+    ),
+    pytest.param(
+        {"text_color": (100, 100, 100, 100)},
+        {"text_color_cmyk": [100, 100, 100, 100]},
+        id="cmyk-maximum",
+    ),
+    pytest.param({"font": "x"}, {"font": "x"}, id="font-minimum"),
+    pytest.param({"font": "x" * 200}, {"font": "x" * 200}, id="font-maximum"),
+    pytest.param({"bold_font": "x"}, {"bold_font": "x"}, id="bold-font-minimum"),
+    pytest.param(
+        {"bold_font": "x" * 200},
+        {"bold_font": "x" * 200},
+        id="bold-font-maximum",
+    ),
+    pytest.param({"footer_message": ""}, {"footer_message": ""}, id="footer-empty"),
+    pytest.param(
+        {"footer_message": "x" * 500},
+        {"footer_message": "x" * 500},
+        id="footer-maximum",
+    ),
+]
+
+
+@pytest.mark.parametrize(("options", "expected"), VALID_RENDER_BOUNDARIES)
+def test_zugferd_payload_accepts_constraint_boundaries(
+    options: dict[str, Any], expected: dict[str, Any]
+) -> None:
     invoice = _make_file("invoice.xml", "application/xml")
-    _dump(
+    payload = _dump(
         PdfInvoiceXmlToZugferdPayload,
         {"invoice": invoice, "render_options": options},
     )
+    assert payload["render_options"] == expected
 
 
 @pytest.mark.parametrize(
@@ -454,6 +501,7 @@ def test_convert_invoice_xml_to_zugferd_pdf_supported_mime_matrix(
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST":
             counts["post"] += 1
+            assert request.url.path == "/zugferd-pdf"
             assert json.loads(request.content) == {
                 "id": str(invoice.id),
                 "logo_id": str(logo.id),
@@ -467,6 +515,8 @@ def test_convert_invoice_xml_to_zugferd_pdf_supported_mime_matrix(
                     "outputId": str(output_id),
                 },
             )
+        assert request.method == "GET"
+        assert request.url.path == f"/resource/{output_id}"
         counts["get"] += 1
         return httpx.Response(
             200,
@@ -508,7 +558,12 @@ async def test_async_convert_invoice_xml_to_zugferd_pdf_supported_mime_matrix(
     async def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST":
             counts["post"] += 1
-            assert json.loads(request.content)["logo_id"] == str(logo.id)
+            assert request.url.path == "/zugferd-pdf"
+            assert json.loads(request.content) == {
+                "id": str(invoice.id),
+                "logo_id": str(logo.id),
+                "output": "zugferd-async",
+            }
             return httpx.Response(
                 200,
                 json={
@@ -516,6 +571,8 @@ async def test_async_convert_invoice_xml_to_zugferd_pdf_supported_mime_matrix(
                     "outputId": str(output_id),
                 },
             )
+        assert request.method == "GET"
+        assert request.url.path == f"/resource/{output_id}"
         counts["get"] += 1
         return httpx.Response(
             200,
@@ -549,6 +606,7 @@ def test_convert_pdf_to_zugferd_pdf_preserves_pdf_by_default() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST":
             counts["post"] += 1
+            assert request.url.path == "/zugferd-pdf"
             assert json.loads(request.content) == {
                 "id": str(invoice.id),
                 "pdf_id": str(pdf.id),
@@ -562,6 +620,8 @@ def test_convert_pdf_to_zugferd_pdf_preserves_pdf_by_default() -> None:
                     "outputId": str(output_id),
                 },
             )
+        assert request.method == "GET"
+        assert request.url.path == f"/resource/{output_id}"
         counts["get"] += 1
         return httpx.Response(
             200,
@@ -597,6 +657,7 @@ async def test_async_convert_pdf_to_zugferd_pdf_allows_regeneration_options() ->
     async def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST":
             counts["post"] += 1
+            assert request.url.path == "/zugferd-pdf"
             assert json.loads(request.content) == {
                 "id": str(invoice.id),
                 "pdf_id": str(pdf.id),
@@ -615,6 +676,8 @@ async def test_async_convert_pdf_to_zugferd_pdf_allows_regeneration_options() ->
                     "outputId": str(output_id),
                 },
             )
+        assert request.method == "GET"
+        assert request.url.path == f"/resource/{output_id}"
         counts["get"] += 1
         return httpx.Response(
             200,
@@ -651,6 +714,8 @@ def test_convert_invoice_xml_to_zugferd_pdf_accepts_every_published_font(
     invoice = _make_file("invoice.xml", "application/xml")
 
     def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
         assert json.loads(request.content)["render_options"] == {"font": font}
         return httpx.Response(200, json={"inputId": str(invoice.id)})
 
@@ -670,6 +735,8 @@ async def test_async_convert_invoice_xml_to_zugferd_pdf_accepts_every_published_
     invoice = _make_file("invoice.xml", "application/xml")
 
     async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
         assert json.loads(request.content)["render_options"] == {"font": font}
         return httpx.Response(200, json={"inputId": str(invoice.id)})
 
@@ -678,6 +745,189 @@ async def test_async_convert_invoice_xml_to_zugferd_pdf_accepts_every_published_
     ) as client:
         await client.convert_invoice_xml_to_zugferd_pdf(
             invoice, render_options={"font": font}
+        )
+
+
+def test_convert_invoice_xml_to_zugferd_pdf_accepts_unlisted_font_name() -> None:
+    invoice = _make_file("invoice.xml", "application/xml")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
+        assert json.loads(request.content)["render_options"] == {"font": "Noto Sans"}
+        return httpx.Response(200, json={"inputId": str(invoice.id)})
+
+    with PdfRestClient(
+        api_key=VALID_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        client.convert_invoice_xml_to_zugferd_pdf(
+            invoice, render_options={"font": "Noto Sans"}
+        )
+
+
+@pytest.mark.asyncio
+async def test_async_convert_invoice_xml_to_zugferd_pdf_accepts_unlisted_font_name() -> (
+    None
+):
+    invoice = _make_file("invoice.xml", "application/xml")
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
+        assert json.loads(request.content)["render_options"] == {"font": "Noto Sans"}
+        return httpx.Response(200, json={"inputId": str(invoice.id)})
+
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        await client.convert_invoice_xml_to_zugferd_pdf(
+            invoice, render_options={"font": "Noto Sans"}
+        )
+
+
+CLIENT_COLOR_CASES = [
+    pytest.param(field, color, suffix, id=f"{field}-{suffix}")
+    for field in COLOR_FIELDS
+    for color, suffix in (
+        ((0, 127, 255), "rgb"),
+        ((0, 25, 50, 100), "cmyk"),
+    )
+]
+
+INVALID_CLIENT_COLOR_CASES = [
+    pytest.param(field, color, error_match, id=f"{field}-{case_id}")
+    for field in COLOR_FIELDS
+    for color, error_match, case_id in (
+        ((-1, 0, 0), "greater than or equal to 0", "rgb-low"),
+        ((0, 256, 0), "less than or equal to 255", "rgb-high"),
+        ((-1, 0, 0, 0), "greater than or equal to 0", "cmyk-low"),
+        ((0, 101, 0, 0), "less than or equal to 100", "cmyk-high"),
+    )
+]
+
+
+@pytest.mark.parametrize(("field", "color", "suffix"), CLIENT_COLOR_CASES)
+def test_convert_invoice_xml_to_zugferd_pdf_serializes_every_color_option(
+    field: str, color: tuple[int, ...], suffix: str
+) -> None:
+    invoice = _make_file("invoice.xml", "application/xml")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
+        assert json.loads(request.content)["render_options"] == {
+            f"{field}_{suffix}": list(color)
+        }
+        return httpx.Response(200, json={"inputId": str(invoice.id)})
+
+    options = cast(PdfZugferdRenderOptions, cast(object, {field: color}))
+    with PdfRestClient(
+        api_key=VALID_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        client.convert_invoice_xml_to_zugferd_pdf(invoice, render_options=options)
+
+
+@pytest.mark.parametrize(("field", "color", "suffix"), CLIENT_COLOR_CASES)
+@pytest.mark.asyncio
+async def test_async_convert_invoice_xml_to_zugferd_pdf_serializes_every_color_option(
+    field: str, color: tuple[int, ...], suffix: str
+) -> None:
+    invoice = _make_file("invoice.xml", "application/xml")
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
+        assert json.loads(request.content)["render_options"] == {
+            f"{field}_{suffix}": list(color)
+        }
+        return httpx.Response(200, json={"inputId": str(invoice.id)})
+
+    options = cast(PdfZugferdRenderOptions, cast(object, {field: color}))
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        await client.convert_invoice_xml_to_zugferd_pdf(invoice, render_options=options)
+
+
+@pytest.mark.parametrize(("field", "color", "error_match"), INVALID_CLIENT_COLOR_CASES)
+def test_convert_invoice_xml_to_zugferd_pdf_rejects_every_invalid_color_before_transport(
+    field: str, color: tuple[int, ...], error_match: str
+) -> None:
+    invoice = _make_file("invoice.xml", "application/xml")
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        pytest.fail("transport must not run for invalid local input")
+
+    options = cast(PdfZugferdRenderOptions, cast(object, {field: color}))
+    with (
+        PdfRestClient(
+            api_key=VALID_API_KEY, transport=httpx.MockTransport(handler)
+        ) as client,
+        pytest.raises(ValidationError, match=error_match),
+    ):
+        client.convert_invoice_xml_to_zugferd_pdf(invoice, render_options=options)
+
+
+@pytest.mark.parametrize(("field", "color", "error_match"), INVALID_CLIENT_COLOR_CASES)
+@pytest.mark.asyncio
+async def test_async_convert_invoice_xml_to_zugferd_pdf_rejects_every_invalid_color_before_transport(
+    field: str, color: tuple[int, ...], error_match: str
+) -> None:
+    invoice = _make_file("invoice.xml", "application/xml")
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        pytest.fail("transport must not run for invalid local input")
+
+    options = cast(PdfZugferdRenderOptions, cast(object, {field: color}))
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        with pytest.raises(ValidationError, match=error_match):
+            await client.convert_invoice_xml_to_zugferd_pdf(
+                invoice, render_options=options
+            )
+
+
+@pytest.mark.parametrize(("options", "expected"), VALID_RENDER_BOUNDARIES)
+def test_convert_invoice_xml_to_zugferd_pdf_accepts_constraint_boundaries(
+    options: dict[str, Any], expected: dict[str, Any]
+) -> None:
+    invoice = _make_file("invoice.xml", "application/xml")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
+        assert json.loads(request.content)["render_options"] == expected
+        return httpx.Response(200, json={"inputId": str(invoice.id)})
+
+    render_options = cast(PdfZugferdRenderOptions, cast(object, options))
+    with PdfRestClient(
+        api_key=VALID_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        client.convert_invoice_xml_to_zugferd_pdf(
+            invoice, render_options=render_options
+        )
+
+
+@pytest.mark.parametrize(("options", "expected"), VALID_RENDER_BOUNDARIES)
+@pytest.mark.asyncio
+async def test_async_convert_invoice_xml_to_zugferd_pdf_accepts_constraint_boundaries(
+    options: dict[str, Any], expected: dict[str, Any]
+) -> None:
+    invoice = _make_file("invoice.xml", "application/xml")
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
+        assert json.loads(request.content)["render_options"] == expected
+        return httpx.Response(200, json={"inputId": str(invoice.id)})
+
+    render_options = cast(PdfZugferdRenderOptions, cast(object, options))
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        await client.convert_invoice_xml_to_zugferd_pdf(
+            invoice, render_options=render_options
         )
 
 
@@ -691,9 +941,13 @@ CLIENT_RENDER_CASES = [
         pytest.param("currency_display", value, value, id=f"currency-{value}")
         for value in CURRENCY_DISPLAYS
     ),
+    pytest.param("label_language", "en", "en", id="language-english"),
     pytest.param("label_language", "eng", "en", id="language-english-alias"),
+    pytest.param("label_language", "de", "de", id="language-german"),
     pytest.param("label_language", "deu-DE", "de", id="language-german-alias"),
+    pytest.param("label_language", "fr", "fr", id="language-french"),
     pytest.param("label_language", "fra", "fr", id="language-french-alias"),
+    pytest.param("date_format", "dd.MM.yyyy", "dd.MM.yyyy", id="date-format"),
 ]
 
 
@@ -704,6 +958,8 @@ def test_convert_invoice_xml_to_zugferd_pdf_accepts_render_contract(
     invoice = _make_file("invoice.xml", "application/xml")
 
     def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
         assert json.loads(request.content)["render_options"] == {field: expected}
         return httpx.Response(200, json={"inputId": str(invoice.id)})
 
@@ -722,6 +978,8 @@ async def test_async_convert_invoice_xml_to_zugferd_pdf_accepts_render_contract(
     invoice = _make_file("invoice.xml", "application/xml")
 
     async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
         assert json.loads(request.content)["render_options"] == {field: expected}
         return httpx.Response(200, json={"inputId": str(invoice.id)})
 
@@ -739,13 +997,18 @@ INVALID_GENERATION_CASES = [
     pytest.param("logo-mime", "Logo must be a PNG or JPEG file", id="logo-mime"),
     pytest.param("logo-empty", "at least 1 item", id="logo-empty"),
     pytest.param("logo-extra", "at most 1 item", id="logo-extra"),
-    pytest.param("invalid-literal", "locale", id="invalid-literal"),
+    pytest.param("invalid-corner", "logo_corner", id="invalid-corner"),
+    pytest.param("invalid-locale", "locale", id="invalid-locale"),
+    pytest.param("invalid-currency", "currency_display", id="invalid-currency"),
     pytest.param("malformed-color", "greater than or equal to 0", id="malformed-color"),
     pytest.param("unsafe-output", "directory separator", id="unsafe-output"),
     pytest.param("language-null", "valid string", id="language-null"),
     pytest.param("font-empty", "at least 1 character", id="font-empty"),
     pytest.param("font-long", "at most 200 characters", id="font-long"),
+    pytest.param("bold-font-empty", "at least 1 character", id="bold-font-empty"),
+    pytest.param("bold-font-long", "at most 200 characters", id="bold-font-long"),
     pytest.param("footer-long", "at most 500 characters", id="footer-long"),
+    pytest.param("precision-low", "greater than or equal to 0", id="precision-low"),
     pytest.param("precision-high", "less than or equal to 4", id="precision-high"),
 ]
 
@@ -770,7 +1033,12 @@ def _invoke_invalid_generation(client: Any, case: str) -> Any:
                 ]
             },
         ),
-        "invalid-literal": (invoice, {"render_options": {"locale": "en-US"}}),
+        "invalid-corner": (invoice, {"render_options": {"logo_corner": "center"}}),
+        "invalid-locale": (invoice, {"render_options": {"locale": "en-US"}}),
+        "invalid-currency": (
+            invoice,
+            {"render_options": {"currency_display": "iso"}},
+        ),
         "malformed-color": (
             invoice,
             {"render_options": {"text_color": (-1, 0, 0)}},
@@ -782,9 +1050,18 @@ def _invoke_invalid_generation(client: Any, case: str) -> Any:
         ),
         "font-empty": (invoice, {"render_options": {"font": "   "}}),
         "font-long": (invoice, {"render_options": {"font": "x" * 201}}),
+        "bold-font-empty": (invoice, {"render_options": {"bold_font": "   "}}),
+        "bold-font-long": (
+            invoice,
+            {"render_options": {"bold_font": "x" * 201}},
+        ),
         "footer-long": (
             invoice,
             {"render_options": {"footer_message": "x" * 501}},
+        ),
+        "precision-low": (
+            invoice,
+            {"render_options": {"decimal_precision": -1}},
         ),
         "precision-high": (
             invoice,
@@ -834,6 +1111,8 @@ INVALID_PDF_CASES = [
     pytest.param("invoice-empty", "at least 1 item", id="invoice-empty"),
     pytest.param("invoice-extra", "at most 1 item", id="invoice-extra"),
     pytest.param("logo-mime", "Logo must be a PNG or JPEG file", id="logo-mime"),
+    pytest.param("logo-empty", "at least 1 item", id="logo-empty"),
+    pytest.param("logo-extra", "at most 1 item", id="logo-extra"),
     pytest.param(
         "logo-without-permission",
         "allow_regeneration=True",
@@ -865,6 +1144,18 @@ def _invoke_invalid_pdf_conversion(client: Any, case: str) -> Any:
         invoice = [invoice, _make_file("second.xml", "text/xml")]
     elif case == "logo-mime":
         kwargs.update(allow_regeneration=True, logo=_make_file("logo.gif", "image/gif"))
+    elif case in {"logo-empty", "logo-extra"}:
+        logos = {
+            "logo-empty": [],
+            "logo-extra": [
+                _make_file("one.png", "image/png"),
+                _make_file("two.jpg", "image/jpeg"),
+            ],
+        }
+        kwargs.update(
+            allow_regeneration=True,
+            logo=logos[case],
+        )
     elif case == "logo-without-permission":
         kwargs["logo"] = _make_file("logo.png", "image/png")
     else:
@@ -925,6 +1216,8 @@ def test_zugferd_sync_request_customization(
     pdf = _make_file("source.pdf", "application/pdf")
 
     def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
         assert request.url.params["trace"] == "sync"
         assert request.headers["X-Trace"] == "zugferd"
         _assert_timeout(request.extensions.get("timeout"), 14.0)
@@ -965,6 +1258,8 @@ async def test_zugferd_async_request_customization(method_name: str) -> None:
     pdf = _make_file("source.pdf", "application/pdf")
 
     async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/zugferd-pdf"
         assert request.url.params["trace"] == "async"
         assert request.headers["X-Trace"] == "zugferd-async"
         _assert_timeout(request.extensions.get("timeout"), 21.0)
