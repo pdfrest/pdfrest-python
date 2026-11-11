@@ -267,6 +267,16 @@ VALID_RENDER_BOUNDARIES = [
         id="precision-minimum",
     ),
     pytest.param(
+        {"decimal_precision": 1},
+        {"decimal_precision": 1},
+        id="precision-after-minimum",
+    ),
+    pytest.param(
+        {"decimal_precision": 3},
+        {"decimal_precision": 3},
+        id="precision-before-maximum",
+    ),
+    pytest.param(
         {"decimal_precision": 4},
         {"decimal_precision": 4},
         id="precision-maximum",
@@ -643,6 +653,116 @@ def test_convert_pdf_to_zugferd_pdf_preserves_pdf_by_default() -> None:
         input_ids=[invoice.id, pdf.id],
         output_id=output_id,
         output_name="preserved.pdf",
+    )
+
+
+@pytest.mark.asyncio
+async def test_async_convert_pdf_to_zugferd_pdf_preserves_pdf_by_default() -> None:
+    invoice = _make_file("invoice.xml", "application/xml", prefix=1)
+    pdf = _make_file("invoice.pdf", "application/pdf", prefix=2)
+    output_id = PdfRestFileID.generate()
+    counts = {"post": 0, "get": 0}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            counts["post"] += 1
+            assert request.url.path == "/zugferd-pdf"
+            assert json.loads(request.content) == {
+                "id": str(invoice.id),
+                "pdf_id": str(pdf.id),
+                "regenerate_pdf": False,
+                "output": "async-preserved",
+            }
+            return httpx.Response(
+                200,
+                json={
+                    "inputId": [str(invoice.id), str(pdf.id)],
+                    "outputId": str(output_id),
+                },
+            )
+        assert request.method == "GET"
+        assert request.url.path == f"/resource/{output_id}"
+        counts["get"] += 1
+        return httpx.Response(
+            200,
+            json=build_file_info_payload(
+                str(output_id), "async-preserved.pdf", "application/pdf"
+            ),
+        )
+
+    async with AsyncPdfRestClient(
+        api_key=ASYNC_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        response = await client.convert_pdf_to_zugferd_pdf(
+            pdf, invoice=invoice, output="async-preserved"
+        )
+
+    assert counts == {"post": 1, "get": 1}
+    _assert_response(
+        response,
+        input_ids=[invoice.id, pdf.id],
+        output_id=output_id,
+        output_name="async-preserved.pdf",
+    )
+
+
+def test_convert_pdf_to_zugferd_pdf_allows_regeneration_options() -> None:
+    invoice = _make_file("invoice.xml", "text/xml", prefix=1)
+    pdf = _make_file("invoice.pdf", "application/pdf", prefix=2)
+    logo = _make_file("logo.jpg", "image/jpeg")
+    output_id = PdfRestFileID.generate()
+    counts = {"post": 0, "get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            counts["post"] += 1
+            assert request.url.path == "/zugferd-pdf"
+            assert json.loads(request.content) == {
+                "id": str(invoice.id),
+                "pdf_id": str(pdf.id),
+                "logo_id": str(logo.id),
+                "render_options": {
+                    "bold_font": "arialbold",
+                    "border_color_cmyk": [0, 0, 0, 50],
+                },
+                "regenerate_pdf": True,
+                "output": "replacement-allowed",
+            }
+            return httpx.Response(
+                200,
+                json={
+                    "inputId": [str(invoice.id), str(pdf.id), str(logo.id)],
+                    "outputId": str(output_id),
+                },
+            )
+        assert request.method == "GET"
+        assert request.url.path == f"/resource/{output_id}"
+        counts["get"] += 1
+        return httpx.Response(
+            200,
+            json=build_file_info_payload(
+                str(output_id), "replacement-allowed.pdf", "application/pdf"
+            ),
+        )
+
+    with PdfRestClient(
+        api_key=VALID_API_KEY, transport=httpx.MockTransport(handler)
+    ) as client:
+        response = client.convert_pdf_to_zugferd_pdf(
+            pdf,
+            invoice=invoice,
+            allow_regeneration=True,
+            logo=logo,
+            render_options={"bold_font": "arialbold", "border_color": (0, 0, 0, 50)},
+            output="replacement-allowed",
+        )
+
+    assert counts == {"post": 1, "get": 1}
+    _assert_response(
+        response,
+        input_ids=[invoice.id, pdf.id, logo.id],
+        output_id=output_id,
+        output_name="replacement-allowed.pdf",
     )
 
 

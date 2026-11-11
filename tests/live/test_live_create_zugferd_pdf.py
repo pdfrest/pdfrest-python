@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Literal, TypedDict, cast, get_args
 
 import pytest
+from annotated_types import Ge, Le
 
 from pdfrest import AsyncPdfRestClient, PdfRestApiError, PdfRestClient
 from pdfrest.models import ExtractedTextDocument, PdfRestFile
+from pdfrest.models._internal import _PdfZugferdRenderOptions
 from pdfrest.types import (
     PdfZugferdCurrencyDisplay,
     PdfZugferdKnownFont,
@@ -33,6 +35,18 @@ CURRENCY_DISPLAYS = cast(
 )
 LABEL_LANGUAGES = cast(tuple[str, ...], get_args(get_args(PdfZugferdLabelLanguage)[0]))
 KNOWN_FONTS = cast(tuple[PdfZugferdKnownFont, ...], get_args(PdfZugferdKnownFont))
+
+
+def _decimal_precision_values() -> tuple[int, int, int, int]:
+    field = _PdfZugferdRenderOptions.model_fields["decimal_precision"]
+    minimum = next(item.ge for item in field.metadata if isinstance(item, Ge))
+    maximum = next(item.le for item in field.metadata if isinstance(item, Le))
+    assert isinstance(minimum, int)
+    assert isinstance(maximum, int)
+    return minimum, minimum + 1, maximum - 1, maximum
+
+
+DECIMAL_PRECISION_VALUES = _decimal_precision_values()
 
 
 ISOLATED_RENDER_OPTION_CASES = [
@@ -68,15 +82,13 @@ ISOLATED_RENDER_OPTION_CASES = [
         )
         for value in CURRENCY_DISPLAYS
     ),
-    pytest.param(
-        PdfZugferdRenderOptions(decimal_precision=0),
-        "precision-minimum",
-        id="precision-minimum",
-    ),
-    pytest.param(
-        PdfZugferdRenderOptions(decimal_precision=4),
-        "precision-maximum",
-        id="precision-maximum",
+    *(
+        pytest.param(
+            PdfZugferdRenderOptions(decimal_precision=value),
+            f"precision-{value}",
+            id=f"precision-{value}",
+        )
+        for value in DECIMAL_PRECISION_VALUES
     ),
 ]
 
@@ -86,6 +98,11 @@ INVALID_RENDER_OPTION_CASES = [
     ),
     pytest.param({"currency_display": "iso"}, r"(?i)currency|invalid", id="currency"),
     pytest.param({"locale": "en-US"}, r"(?i)locale|invalid", id="locale"),
+    pytest.param(
+        {"label_language": "nl"},
+        r"(?i)label.language|English|German|French|invalid",
+        id="label-language",
+    ),
     pytest.param(
         {"decimal_precision": -1},
         r"(?i)decimal|precision|range|invalid",
@@ -212,11 +229,39 @@ FONT_RENDER_OPTION_CASES = [
 
 OBSERVABLE_VISUAL_CASES = [
     pytest.param(
+        PdfZugferdRenderOptions(text_color=(255, 0, 0)),
+        "text-color",
+        None,
+        "invoice",
+        id="text-color",
+    ),
+    pytest.param(
+        PdfZugferdRenderOptions(muted_text_color=(255, 0, 0)),
+        "muted-text-color",
+        None,
+        "invoice",
+        id="muted-text-color",
+    ),
+    pytest.param(
+        PdfZugferdRenderOptions(accent_color=(255, 0, 0)),
+        "accent-color",
+        None,
+        "invoice",
+        id="accent-color",
+    ),
+    pytest.param(
         PdfZugferdRenderOptions(border_color=(255, 0, 0)),
         "border-color",
         None,
         "invoice",
         id="border-color",
+    ),
+    pytest.param(
+        PdfZugferdRenderOptions(table_header_color=(255, 0, 0)),
+        "table-header-color",
+        None,
+        "multi_item_invoice",
+        id="table-header-color",
     ),
     pytest.param(
         PdfZugferdRenderOptions(table_alternate_color=(255, 255, 0)),
@@ -231,6 +276,13 @@ OBSERVABLE_VISUAL_CASES = [
         "Observable review footer",
         "invoice",
         id="footer-message",
+    ),
+    pytest.param(
+        PdfZugferdRenderOptions(date_format="yyyy/MM/dd"),
+        "date-format",
+        "2020/03/05",
+        "invoice",
+        id="date-format",
     ),
 ]
 
