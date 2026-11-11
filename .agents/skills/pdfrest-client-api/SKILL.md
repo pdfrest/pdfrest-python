@@ -147,6 +147,15 @@ body to the current API contract.
 - Do not change positional meaning, narrow accepted types, alter established
   defaults, remove arguments, or change response shapes as part of an API
   adaptation.
+- Treat every existing public export as part of the compatibility surface, not
+  only client methods. Preserve public type aliases at runtime and under static
+  type checking: equality, `typing.get_origin()`, `typing.get_args()`,
+  annotations, and assignability must remain equivalent to the base branch.
+  Reusing or composing a public type is acceptable only when those observable
+  contracts remain unchanged.
+- Run the existing tests for unrelated services unchanged. If a new endpoint
+  makes one fail, fix the compatibility break instead of rewriting that test to
+  accept the regression. Add focused tests for the new behavior separately.
 - If the server requires a breaking SDK change and no faithful compatible
   translation/default exists, stop and ask the user for a migration decision
   before editing.
@@ -385,6 +394,10 @@ documentation with its types; do not hand-copy a shape schema into Markdown.
   placement and an `Accepted values:` list whose bullets document each literal
   spelling and meaning. Inspect generated HTML to confirm the list renders with
   the alias rather than only in the source file.
+- Make every public literal's rendered documentation self-contained. When an
+  alias reuses or extends another literal, expand the complete applicable list
+  at that alias instead of directing readers to combine values from another
+  entry.
 - Public types are re-exported through `pdfrest.types`. Verify that the rendered
   reference resolves the re-export to its source union and member types. A
   self-reference such as `PdfAddShapeObject = PdfAddShapeObject` is a rendering
@@ -404,3 +417,7 @@ Run the full pytest suite and `uvx nox -s tests` when practical. For API
 reference changes, also run the strict docs build. Run the focused example and
 the example matrix as described above. Report the OpenAPI operation inspected,
 files changed, checks run, checks skipped, and any live-validation limitation.
+Before completion, compare every touched pre-existing public interface with the
+base branch at runtime and with the type checker, run its original unrelated
+tests without adaptations, and inspect rendered HTML for complete literal value
+lists rather than relying on a successful documentation build alone.
