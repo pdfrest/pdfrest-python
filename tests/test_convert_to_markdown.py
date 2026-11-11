@@ -8,13 +8,22 @@ from pydantic import ValidationError
 
 from pdfrest import AsyncPdfRestClient, PdfRestClient
 from pdfrest.models import (
+    ConvertToMarkdownResponse,
     PdfRestFile,
     PdfRestFileBasedResponse,
     PdfRestFileID,
 )
-from pdfrest.models._internal import ConvertToMarkdownPayload
+from pdfrest.models._internal import (
+    ConvertToMarkdownInlinePayload,
+    ConvertToMarkdownPayload,
+)
 
-from .graphics_test_helpers import ASYNC_API_KEY, VALID_API_KEY, make_pdf_file
+from .graphics_test_helpers import (
+    ASYNC_API_KEY,
+    VALID_API_KEY,
+    build_file_info_payload,
+    make_pdf_file,
+)
 
 
 def _make_markdown_file(file_id: str, name: str = "markdown.md") -> PdfRestFile:
@@ -63,6 +72,37 @@ def test_convert_to_markdown_payload_invalid_page_break_comments() -> None:
     with pytest.raises(ValidationError, match="Input should be 'on' or 'off'"):
         ConvertToMarkdownPayload.model_validate(
             {"files": [file_repr], "page_break_comments": "maybe"}
+        )
+
+
+def test_convert_to_markdown_inline_payload_serializes_exact_request() -> None:
+    input_file = make_pdf_file(PdfRestFileID.generate(1))
+
+    payload = ConvertToMarkdownInlinePayload.model_validate(
+        {
+            "files": input_file,
+            "pages": [1, "3-last"],
+            "page_break_comments": True,
+            "output_type": "json",
+        }
+    )
+
+    assert payload.model_dump(
+        mode="json", by_alias=True, exclude_none=True, exclude_unset=True
+    ) == {
+        "id": str(input_file.id),
+        "pages": "1,3-last",
+        "page_break_comments": "on",
+        "output_type": "json",
+    }
+
+
+def test_convert_to_markdown_inline_payload_rejects_file_output() -> None:
+    input_file = make_pdf_file(PdfRestFileID.generate(1))
+
+    with pytest.raises(ValidationError, match="Input should be 'json'"):
+        ConvertToMarkdownInlinePayload.model_validate(
+            {"files": input_file, "output_type": "file"}
         )
 
 
@@ -408,3 +448,194 @@ async def test_async_convert_to_markdown_success(
     assert seen == {"post": 1, "get": 1}
     assert isinstance(response, PdfRestFileBasedResponse)
     assert len(response.output_files) == 1
+
+
+def test_convert_to_markdown_inline_request_customization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate(1))
+    markdown = "# Simple Report\n\nInline Markdown content."
+    expected_payload = ConvertToMarkdownInlinePayload.model_validate(
+        {
+            "files": input_file,
+            "pages": ["1-last"],
+            "page_break_comments": True,
+            "output_type": "json",
+        }
+    ).model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
+    captured_timeout: dict[str, float | dict[str, float] | None] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/markdown"
+        assert request.url.params["trace"] == "true"
+        assert request.headers["X-Debug"] == "inline-sync"
+        captured_timeout["value"] = request.extensions.get("timeout")
+        payload = json.loads(request.content.decode("utf-8"))
+        assert payload == {**expected_payload, "debug": True}
+        return httpx.Response(
+            200,
+            json={"markdown": markdown, "inputId": str(input_file.id)},
+        )
+
+    transport = httpx.MockTransport(handler)
+    with PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client:
+        response = client.convert_to_markdown_inline(
+            input_file,
+            pages=["1-last"],
+            page_break_comments=True,
+            extra_query={"trace": "true"},
+            extra_headers={"X-Debug": "inline-sync"},
+            extra_body={"debug": True},
+            timeout=0.4,
+        )
+
+    assert isinstance(response, ConvertToMarkdownResponse)
+    assert response.markdown == markdown
+    assert response.input_id == input_file.id
+    timeout_value = captured_timeout["value"]
+    assert timeout_value is not None
+    if isinstance(timeout_value, dict):
+        assert all(
+            component == pytest.approx(0.4) for component in timeout_value.values()
+        )
+    else:
+        assert timeout_value == pytest.approx(0.4)
+
+
+@pytest.mark.asyncio
+async def test_async_convert_to_markdown_inline_request_customization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate(2))
+    markdown = "# Simple Report\n\nAsync inline Markdown content."
+    expected_payload = ConvertToMarkdownInlinePayload.model_validate(
+        {
+            "files": input_file,
+            "pages": ["1-last"],
+            "page_break_comments": False,
+            "output_type": "json",
+        }
+    ).model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
+    captured_timeout: dict[str, float | dict[str, float] | None] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/markdown"
+        assert request.url.params["trace"] == "true"
+        assert request.headers["X-Debug"] == "inline-async"
+        captured_timeout["value"] = request.extensions.get("timeout")
+        payload = json.loads(request.content.decode("utf-8"))
+        assert payload == {**expected_payload, "debug": True}
+        return httpx.Response(
+            200,
+            json={"markdown": markdown, "inputId": str(input_file.id)},
+        )
+
+    transport = httpx.MockTransport(handler)
+    async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
+        response = await client.convert_to_markdown_inline(
+            input_file,
+            pages=["1-last"],
+            page_break_comments=False,
+            extra_query={"trace": "true"},
+            extra_headers={"X-Debug": "inline-async"},
+            extra_body={"debug": True},
+            timeout=0.4,
+        )
+
+    assert isinstance(response, ConvertToMarkdownResponse)
+    assert response.markdown == markdown
+    assert response.input_id == input_file.id
+    timeout_value = captured_timeout["value"]
+    assert timeout_value is not None
+    if isinstance(timeout_value, dict):
+        assert all(
+            component == pytest.approx(0.4) for component in timeout_value.values()
+        )
+    else:
+        assert timeout_value == pytest.approx(0.4)
+
+
+def test_convert_to_markdown_inline_rejects_multiple_files(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate(1))
+    transport = httpx.MockTransport(
+        lambda request: pytest.fail(
+            f"Unexpected request {request.method} {request.url}"
+        )
+    )
+
+    with (
+        PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client,
+        pytest.raises(ValidationError, match="List should have at most 1 item"),
+    ):
+        client.convert_to_markdown_inline([input_file, input_file])
+
+
+def test_convert_to_markdown_inline_rejects_non_pdf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    png_file = PdfRestFile.model_validate(
+        build_file_info_payload(
+            PdfRestFileID.generate(1),
+            "example.png",
+            "image/png",
+        )
+    )
+    transport = httpx.MockTransport(
+        lambda request: pytest.fail(
+            f"Unexpected request {request.method} {request.url}"
+        )
+    )
+
+    with (
+        PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client,
+        pytest.raises(ValidationError, match="Must be a PDF file"),
+    ):
+        client.convert_to_markdown_inline(png_file)
+
+
+@pytest.mark.asyncio
+async def test_async_convert_to_markdown_inline_rejects_multiple_files(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate(2))
+    transport = httpx.MockTransport(
+        lambda request: pytest.fail(
+            f"Unexpected request {request.method} {request.url}"
+        )
+    )
+
+    async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
+        with pytest.raises(ValidationError, match="List should have at most 1 item"):
+            await client.convert_to_markdown_inline([input_file, input_file])
+
+
+@pytest.mark.asyncio
+async def test_async_convert_to_markdown_inline_rejects_non_pdf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    png_file = PdfRestFile.model_validate(
+        build_file_info_payload(
+            PdfRestFileID.generate(2),
+            "example.png",
+            "image/png",
+        )
+    )
+    transport = httpx.MockTransport(
+        lambda request: pytest.fail(
+            f"Unexpected request {request.method} {request.url}"
+        )
+    )
+
+    async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
+        with pytest.raises(ValidationError, match="Must be a PDF file"):
+            await client.convert_to_markdown_inline(png_file)
