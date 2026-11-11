@@ -1,6 +1,7 @@
 """Public model exports for the `pdfrest.models` package."""
 
 from .public import (
+    ConvertToMarkdownResponse,
     ExtractedTextDocument,
     ExtractedTextFullText,
     ExtractedTextFullTextPage,
@@ -27,6 +28,7 @@ from .public import (
 )
 
 __all__ = [
+    "ConvertToMarkdownResponse",
     "ExtractTextResponse",
     "ExtractedTextDocument",
     "ExtractedTextFullText",
