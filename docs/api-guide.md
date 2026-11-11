@@ -58,7 +58,10 @@ Use this group when users need metadata or text intelligence.
   [translate_pdf_text][pdfrest.PdfRestClient.translate_pdf_text],
   [translate_pdf_text_to_file][pdfrest.PdfRestClient.translate_pdf_text_to_file]
 - Markdown output:
-  [convert_to_markdown][pdfrest.PdfRestClient.convert_to_markdown]
+  [convert_to_markdown_inline][pdfrest.PdfRestClient.convert_to_markdown_inline]
+  returns generated Markdown directly, while
+  [convert_to_markdown][pdfrest.PdfRestClient.convert_to_markdown] returns a
+  downloadable Markdown file
 
 ## Compose, split, merge, and package
 

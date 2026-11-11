@@ -61,6 +61,7 @@ from .exceptions import (
     translate_httpx_error,
 )
 from .models import (
+    ConvertToMarkdownResponse,
     ExtractedTextDocument,
     PdfRestDeletionResponse,
     PdfRestErrorResponse,
@@ -87,6 +88,7 @@ from .models._internal import (
     ConvertPdfToPostscriptPayload,
     ConvertPlainTextToPdfPayload,
     ConvertPostscriptToPdfPayload,
+    ConvertToMarkdownInlinePayload,
     ConvertToMarkdownPayload,
     ConvertUrlToPdfPayload,
     ConvertXmlToPdfPayload,
@@ -2957,7 +2959,9 @@ class PdfRestClient(_SyncApiClient):
     ) -> PdfRestFileBasedResponse:
         """Convert a PDF to Markdown and return a file-based response.
 
-        Converts document content into Markdown and supports either inline text output or file output. This is useful when preparing PDFs for LLM/RAG indexing and markdown-centric tooling.
+        Converts document content into a downloadable Markdown file. Use
+        [convert_to_markdown_inline][pdfrest.PdfRestClient.convert_to_markdown_inline]
+        when the generated Markdown should be returned directly in the response.
 
         Args:
             file: Uploaded input file or files as `PdfRestFile` objects.
@@ -2995,6 +2999,59 @@ class PdfRestClient(_SyncApiClient):
             extra_body=extra_body,
             timeout=timeout,
         )
+
+    def convert_to_markdown_inline(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        pages: PdfPageSelection | None = None,
+        page_break_comments: bool = False,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> ConvertToMarkdownResponse:
+        """Convert a PDF to Markdown and return the content inline.
+
+        Args:
+            file: Uploaded PDF as a `PdfRestFile` object.
+            pages: Page selection to constrain processing to specific pages.
+            page_break_comments: When true, inserts page-break marker comments
+                between source pages.
+            extra_query: Additional query parameters merged into the request.
+            extra_headers: Additional HTTP headers merged into the request.
+            extra_body: Additional request body fields merged into the payload.
+            timeout: Request timeout override for this call.
+
+        Returns:
+            Generated Markdown and the input resource ID.
+
+        Raises:
+            PdfRestError: If request execution fails at the client or API layer.
+            ValidationError: If local payload validation fails before sending.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "output_type": "json",
+            "page_break_comments": page_break_comments,
+        }
+        if pages is not None:
+            payload["pages"] = pages
+
+        validated_payload = ConvertToMarkdownInlinePayload.model_validate(payload)
+        request = self.prepare_request(
+            "POST",
+            "/markdown",
+            json_body=validated_payload.model_dump(
+                mode="json", by_alias=True, exclude_none=True, exclude_unset=True
+            ),
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+        raw_payload = self._send_request(request)
+        return ConvertToMarkdownResponse.model_validate(raw_payload)
 
     def ocr_pdf(
         self,
@@ -6729,7 +6786,9 @@ class AsyncPdfRestClient(_AsyncApiClient):
     ) -> PdfRestFileBasedResponse:
         """Asynchronous variant of [PdfRestClient.convert_to_markdown][pdfrest.PdfRestClient.convert_to_markdown].
 
-        Converts document content into Markdown and supports either inline text output or file output. This is useful when preparing PDFs for LLM/RAG indexing and markdown-centric tooling.
+        Converts document content into a downloadable Markdown file. Use
+        [convert_to_markdown_inline][pdfrest.AsyncPdfRestClient.convert_to_markdown_inline]
+        when the generated Markdown should be returned directly in the response.
 
         Args:
             file: Uploaded input file or files as `PdfRestFile` objects.
@@ -6767,6 +6826,46 @@ class AsyncPdfRestClient(_AsyncApiClient):
             extra_body=extra_body,
             timeout=timeout,
         )
+
+    async def convert_to_markdown_inline(
+        self,
+        file: PdfRestFile | Sequence[PdfRestFile],
+        *,
+        pages: PdfPageSelection | None = None,
+        page_break_comments: bool = False,
+        extra_query: Query | None = None,
+        extra_headers: AnyMapping | None = None,
+        extra_body: Body | None = None,
+        timeout: TimeoutTypes | None = None,
+    ) -> ConvertToMarkdownResponse:
+        """Asynchronously convert a PDF to Markdown returned inline.
+
+        See
+        [PdfRestClient.convert_to_markdown_inline][pdfrest.PdfRestClient.convert_to_markdown_inline]
+        for argument and response details.
+        """
+        payload: dict[str, Any] = {
+            "files": file,
+            "output_type": "json",
+            "page_break_comments": page_break_comments,
+        }
+        if pages is not None:
+            payload["pages"] = pages
+
+        validated_payload = ConvertToMarkdownInlinePayload.model_validate(payload)
+        request = self.prepare_request(
+            "POST",
+            "/markdown",
+            json_body=validated_payload.model_dump(
+                mode="json", by_alias=True, exclude_none=True, exclude_unset=True
+            ),
+            extra_query=extra_query,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+            timeout=timeout,
+        )
+        raw_payload = await self._send_request(request)
+        return ConvertToMarkdownResponse.model_validate(raw_payload)
 
     async def ocr_pdf(
         self,

@@ -877,8 +877,8 @@ class ExtractTextPayload(BaseModel):
     ] = None
 
 
-class ConvertToMarkdownPayload(BaseModel):
-    """Adapt caller options into a pdfRest-ready markdown conversion payload."""
+class _BaseConvertToMarkdownPayload(BaseModel):
+    """Adapt shared caller options into a pdfRest-ready Markdown payload."""
 
     files: Annotated[
         list[PdfRestFile],
@@ -902,14 +902,27 @@ class ConvertToMarkdownPayload(BaseModel):
         BeforeValidator(_int_to_string),
         PlainSerializer(_serialize_page_ranges),
     ] = None
-    output_type: Annotated[
-        SummaryOutputType, Field(serialization_alias="output_type", default="json")
-    ] = "json"
     page_break_comments: Annotated[
         Literal["on", "off"] | None,
         Field(serialization_alias="page_break_comments", default=None),
         BeforeValidator(_bool_to_on_off),
     ] = None
+
+
+class ConvertToMarkdownInlinePayload(_BaseConvertToMarkdownPayload):
+    """Validate a PDF-to-Markdown request that returns inline content."""
+
+    output_type: Annotated[
+        Literal["json"], Field(serialization_alias="output_type", default="json")
+    ] = "json"
+
+
+class ConvertToMarkdownPayload(_BaseConvertToMarkdownPayload):
+    """Validate a PDF-to-Markdown request that returns a file."""
+
+    output_type: Annotated[
+        Literal["file"], Field(serialization_alias="output_type", default="file")
+    ] = "file"
     output: Annotated[
         str | None,
         Field(serialization_alias="output", min_length=1, default=None),

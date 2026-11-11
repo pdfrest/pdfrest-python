@@ -28,6 +28,7 @@ from ._demo_value_sanitizers import (
 )
 
 __all__ = (
+    "ConvertToMarkdownResponse",
     "ExtractTextResponse",
     "ExtractedTextDocument",
     "ExtractedTextFullText",
@@ -866,18 +867,15 @@ class ExtractedTextDocument(BaseModel):
 
 
 class ConvertToMarkdownResponse(BaseModel):
-    """Response returned by the markdown conversion tool."""
+    """Inline Markdown returned by PDF-to-Markdown conversion."""
 
     model_config = ConfigDict(extra="allow")
 
     markdown: Annotated[
-        str | None,
-        Field(
-            description="Inline markdown content when output_type is json.",
-            default=None,
-        ),
-    ] = None
-    """Inline markdown content when output_type is json."""
+        str,
+        Field(description="Markdown content generated from the input PDF."),
+    ]
+    """Markdown content generated from the input PDF."""
 
     input_id: Annotated[
         PdfRestFileID,
@@ -887,34 +885,6 @@ class ConvertToMarkdownResponse(BaseModel):
         ),
     ]
     """The id of the input file."""
-
-    output_url: Annotated[
-        HttpUrl | None,
-        Field(
-            alias="outputUrl",
-            validation_alias=AliasChoices("output_url", "outputUrl"),
-            description="Download URL for file output.",
-            default=None,
-        ),
-    ] = None
-    """Download URL for file output."""
-
-    output_id: Annotated[
-        PdfRestFileID | None,
-        Field(
-            alias="outputId",
-            validation_alias=AliasChoices("output_id", "outputId"),
-            description="The id of the generated output when output_type is file.",
-            default=None,
-        ),
-    ] = None
-    """The id of the generated output when output_type is file."""
-
-    warning: Annotated[
-        str | None,
-        Field(description="A warning that was generated during markdown conversion."),
-    ] = None
-    """A warning that was generated during markdown conversion."""
 
 
 class PdfRestInfoResponse(BaseModel):
