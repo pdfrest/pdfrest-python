@@ -34,6 +34,8 @@ supported interpreter matrix.
 - `examples/convert_structured_documents/convert_structured_documents_to_pdf_example.py`
   – convert Markdown, plain text, JSON, XML, and CSV documents to PDF with
   format-specific options.
+- `examples/convert_to_markdown/convert_pdf_to_markdown_example.py` – convert a
+  PDF to inline Markdown and a downloadable Markdown file.
 - `examples/convert_postscript_to_pdf/convert_postscript_with_job_options_example.py`
   – convert PostScript to PDF with an uploaded custom `.joboptions` profile.
 - `examples/convert_to_image/convert_password_protected_pdf_to_png_example.py` –
