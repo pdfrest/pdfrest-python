@@ -159,9 +159,12 @@ to the API guide and API reference for exact method names and options.
   or EPS with `convert_postscript_to_pdf`
 - Convert to standards formats (`PDF/A`, `PDF/X`)
 - Create validated ZUGFeRD or Factur-X PDF/A-3 invoices from uploaded CII XML
-  with optional source-PDF, logo, and render controls
+  with ``convert_invoice_xml_to_zugferd_pdf`` and optional logo/render controls
+- Embed CII XML into a matching PDF with ``convert_pdf_to_zugferd_pdf``;
+  preserve the supplied PDF by default or explicitly permit regeneration when
+  the PDF and invoice do not match
 - Validate existing ZUGFeRD or Factur-X PDFs for package, XML, visible-content,
-  and independent PDF/A-3 conformance
+  and independent PDF/A-3 conformance with ``validate_zugferd_pdf``
 
 ### Extraction and Analysis
 

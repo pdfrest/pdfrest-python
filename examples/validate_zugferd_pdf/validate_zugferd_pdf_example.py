@@ -38,7 +38,7 @@ def validate_zugferd_pdf() -> None:
 
     with PdfRestClient(base_url=base_url) as client:
         invoice = client.files.create_from_paths(INVOICE_PATH)[0]
-        created = client.create_zugferd_pdf(
+        created = client.convert_invoice_xml_to_zugferd_pdf(
             invoice,
             output="zugferd-validation-example",
         )

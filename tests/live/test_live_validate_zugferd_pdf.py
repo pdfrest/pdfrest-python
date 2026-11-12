@@ -19,7 +19,7 @@ def generated_zugferd_pdf(
         base_url=pdfrest_live_base_url,
     ) as client:
         invoice = client.files.create_from_paths(invoice_path)[0]
-        response = client.create_zugferd_pdf(
+        response = client.convert_invoice_xml_to_zugferd_pdf(
             invoice,
             output="validation-source-zugferd",
         )
