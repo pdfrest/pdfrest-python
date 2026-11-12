@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from pdfrest import AsyncPdfRestClient, PdfRestClient
 from pdfrest.models import PdfRestFile, PdfRestFileBasedResponse, PdfRestFileID
 from pdfrest.models._internal import PdfConvertColorsPayload
-from pdfrest.types import PdfPresetColorProfile
+from pdfrest.types import PdfPresetColorProfile, PdfRenderingIntent
 
 from .graphics_test_helpers import (
     ASYNC_API_KEY,
@@ -34,6 +34,42 @@ ALL_COLOR_PROFILES: tuple[PdfPresetColorProfile, ...] = cast(
     tuple[PdfPresetColorProfile, ...],
     get_args(PdfPresetColorProfile),
 )
+ALL_RENDERING_INTENTS: tuple[PdfRenderingIntent, ...] = cast(
+    tuple[PdfRenderingIntent, ...],
+    get_args(PdfRenderingIntent),
+)
+
+
+@pytest.mark.parametrize(
+    "rendering_intent",
+    [
+        pytest.param(rendering_intent, id=f"rendering-intent-{rendering_intent}")
+        for rendering_intent in ALL_RENDERING_INTENTS
+    ],
+)
+def test_convert_colors_payload_rendering_intent_serialization(
+    rendering_intent: PdfRenderingIntent,
+) -> None:
+    input_file = make_pdf_file(PdfRestFileID.generate(1))
+
+    payload = PdfConvertColorsPayload.model_validate(
+        {
+            "files": input_file,
+            "color_profile": "srgb",
+            "rendering_intent": rendering_intent,
+        }
+    )
+
+    assert payload.model_dump(
+        mode="json",
+        by_alias=True,
+        exclude_none=True,
+        exclude_unset=True,
+    ) == {
+        "id": str(input_file.id),
+        "color_profile": "srgb",
+        "rendering_intent": rendering_intent,
+    }
 
 
 @pytest.mark.parametrize(
@@ -113,6 +149,63 @@ def test_convert_colors_success(
     assert str(response.input_id) == str(input_file.id)
 
 
+@pytest.mark.parametrize(
+    "rendering_intent",
+    [
+        pytest.param(rendering_intent, id=f"rendering-intent-{rendering_intent}")
+        for rendering_intent in ALL_RENDERING_INTENTS
+    ],
+)
+def test_convert_colors_rendering_intents(
+    monkeypatch: pytest.MonkeyPatch,
+    rendering_intent: PdfRenderingIntent,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate(1))
+    output_id = str(PdfRestFileID.generate())
+    seen = {"post": 0, "get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if (
+            request.method == "POST"
+            and request.url.path == "/pdf-with-converted-colors"
+        ):
+            seen["post"] += 1
+            assert json.loads(request.content.decode("utf-8")) == {
+                "id": str(input_file.id),
+                "color_profile": "srgb",
+                "preserve_black": "false",
+                "rendering_intent": rendering_intent,
+            }
+            return httpx.Response(
+                200,
+                json={"inputId": [input_file.id], "outputId": [output_id]},
+            )
+        if request.method == "GET" and request.url.path == f"/resource/{output_id}":
+            seen["get"] += 1
+            return httpx.Response(
+                200,
+                json=build_file_info_payload(
+                    output_id,
+                    "rendering-intent.pdf",
+                    "application/pdf",
+                ),
+            )
+        msg = f"Unexpected request {request.method} {request.url}"
+        raise AssertionError(msg)
+
+    transport = httpx.MockTransport(handler)
+    with PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client:
+        response = client.convert_colors(
+            input_file,
+            color_profile="srgb",
+            rendering_intent=rendering_intent,
+        )
+
+    assert seen == {"post": 1, "get": 1}
+    assert response.output_file.name == "rendering-intent.pdf"
+
+
 def test_convert_colors_request_customization(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -135,6 +228,7 @@ def test_convert_colors_request_customization(
             assert payload["color_profile"] == "custom"
             assert payload["profile_id"] == str(profile_file.id)
             assert payload["preserve_black"] == "true"
+            assert payload["rendering_intent"] == "perceptual"
             return httpx.Response(
                 200,
                 json={
@@ -163,6 +257,7 @@ def test_convert_colors_request_customization(
             input_file,
             color_profile=profile_file,
             preserve_black=True,
+            rendering_intent="perceptual",
             output="custom",
             extra_query={"trace": "true"},
             extra_headers={"X-Debug": "sync"},
@@ -254,6 +349,64 @@ async def test_async_convert_colors_success(
     assert str(response.input_id) == str(input_file.id)
 
 
+@pytest.mark.parametrize(
+    "rendering_intent",
+    [
+        pytest.param(rendering_intent, id=f"rendering-intent-{rendering_intent}")
+        for rendering_intent in ALL_RENDERING_INTENTS
+    ],
+)
+@pytest.mark.asyncio
+async def test_async_convert_colors_rendering_intents(
+    monkeypatch: pytest.MonkeyPatch,
+    rendering_intent: PdfRenderingIntent,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    input_file = make_pdf_file(PdfRestFileID.generate(2))
+    output_id = str(PdfRestFileID.generate())
+    seen = {"post": 0, "get": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if (
+            request.method == "POST"
+            and request.url.path == "/pdf-with-converted-colors"
+        ):
+            seen["post"] += 1
+            assert json.loads(request.content.decode("utf-8")) == {
+                "id": str(input_file.id),
+                "color_profile": "srgb",
+                "preserve_black": "false",
+                "rendering_intent": rendering_intent,
+            }
+            return httpx.Response(
+                200,
+                json={"inputId": [input_file.id], "outputId": [output_id]},
+            )
+        if request.method == "GET" and request.url.path == f"/resource/{output_id}":
+            seen["get"] += 1
+            return httpx.Response(
+                200,
+                json=build_file_info_payload(
+                    output_id,
+                    "async-rendering-intent.pdf",
+                    "application/pdf",
+                ),
+            )
+        msg = f"Unexpected request {request.method} {request.url}"
+        raise AssertionError(msg)
+
+    transport = httpx.MockTransport(handler)
+    async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
+        response = await client.convert_colors(
+            input_file,
+            color_profile="srgb",
+            rendering_intent=rendering_intent,
+        )
+
+    assert seen == {"post": 1, "get": 1}
+    assert response.output_file.name == "async-rendering-intent.pdf"
+
+
 @pytest.mark.asyncio
 async def test_async_convert_colors_request_customization(
     monkeypatch: pytest.MonkeyPatch,
@@ -277,6 +430,7 @@ async def test_async_convert_colors_request_customization(
             assert payload["color_profile"] == "custom"
             assert payload["profile_id"] == str(profile_file.id)
             assert payload["preserve_black"] == "false"
+            assert payload["rendering_intent"] == "relative_colorimetric"
             assert payload["output"] == "async-custom"
             return httpx.Response(
                 200,
@@ -305,6 +459,7 @@ async def test_async_convert_colors_request_customization(
         response = await client.convert_colors(
             input_file,
             color_profile=profile_file,
+            rendering_intent="relative_colorimetric",
             output="async-custom",
             extra_query={"trace": "async"},
             extra_headers={"X-Debug": "async"},
@@ -498,3 +653,44 @@ async def test_async_convert_colors_rejects_invalid_color_profile(
     async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
         with pytest.raises(ValidationError, match="Input should be"):
             await client.convert_colors(pdf_file, color_profile=invalid_color_profile)
+
+
+def test_convert_colors_rejects_invalid_rendering_intent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    pdf_file = make_pdf_file(PdfRestFileID.generate(1))
+    transport = httpx.MockTransport(lambda request: (_ for _ in ()).throw(RuntimeError))
+
+    with (
+        PdfRestClient(api_key=VALID_API_KEY, transport=transport) as client,
+        pytest.raises(
+            ValidationError,
+            match=r"(?s)rendering_intent.*Input should be",
+        ),
+    ):
+        client.convert_colors(
+            pdf_file,
+            color_profile="srgb",
+            rendering_intent=cast(Any, "not-an-intent"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_async_convert_colors_rejects_invalid_rendering_intent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PDFREST_API_KEY", raising=False)
+    pdf_file = make_pdf_file(PdfRestFileID.generate(2))
+    transport = httpx.MockTransport(lambda request: (_ for _ in ()).throw(RuntimeError))
+
+    async with AsyncPdfRestClient(api_key=ASYNC_API_KEY, transport=transport) as client:
+        with pytest.raises(
+            ValidationError,
+            match=r"(?s)rendering_intent.*Input should be",
+        ):
+            await client.convert_colors(
+                pdf_file,
+                color_profile="srgb",
+                rendering_intent=cast(Any, "not-an-intent"),
+            )

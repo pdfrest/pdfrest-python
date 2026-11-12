@@ -6,13 +6,17 @@ import pytest
 
 from pdfrest import AsyncPdfRestClient, PdfRestApiError, PdfRestClient
 from pdfrest.models import PdfRestFile
-from pdfrest.types import PdfPresetColorProfile
+from pdfrest.types import PdfPresetColorProfile, PdfRenderingIntent
 
 from ..resources import get_test_resource_path
 
 ALL_COLOR_PROFILES: tuple[PdfPresetColorProfile, ...] = cast(
     tuple[PdfPresetColorProfile, ...],
     get_args(PdfPresetColorProfile),
+)
+ALL_RENDERING_INTENTS: tuple[PdfRenderingIntent, ...] = cast(
+    tuple[PdfRenderingIntent, ...],
+    get_args(PdfRenderingIntent),
 )
 
 
@@ -68,6 +72,39 @@ def test_live_convert_colors_color_profiles_success(
     output_file = response.output_file
     assert output_file.type == "application/pdf"
     assert output_file.size > 0
+    assert response.warning is None
+    assert str(response.input_id) == str(uploaded_pdf_for_color_conversion.id)
+
+
+@pytest.mark.parametrize(
+    "rendering_intent",
+    [
+        pytest.param(rendering_intent, id=f"rendering-intent-{rendering_intent}")
+        for rendering_intent in ALL_RENDERING_INTENTS
+    ],
+)
+def test_live_convert_colors_rendering_intents_success(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_color_conversion: PdfRestFile,
+    rendering_intent: PdfRenderingIntent,
+) -> None:
+    with PdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        response = client.convert_colors(
+            uploaded_pdf_for_color_conversion,
+            color_profile="srgb",
+            rendering_intent=rendering_intent,
+        )
+
+    assert len(response.output_files) == 1
+    output_file = response.output_file
+    assert output_file.name.endswith(".pdf")
+    assert output_file.type == "application/pdf"
+    assert output_file.size > 0
+    assert str(output_file.id) in str(output_file.url)
     assert response.warning is None
     assert str(response.input_id) == str(uploaded_pdf_for_color_conversion.id)
 
@@ -166,6 +203,40 @@ async def test_live_async_convert_colors_color_profiles_success(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "rendering_intent",
+    [
+        pytest.param(rendering_intent, id=f"rendering-intent-{rendering_intent}")
+        for rendering_intent in ALL_RENDERING_INTENTS
+    ],
+)
+async def test_live_async_convert_colors_rendering_intents_success(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_color_conversion: PdfRestFile,
+    rendering_intent: PdfRenderingIntent,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        response = await client.convert_colors(
+            uploaded_pdf_for_color_conversion,
+            color_profile="srgb",
+            rendering_intent=rendering_intent,
+        )
+
+    assert len(response.output_files) == 1
+    output_file = response.output_file
+    assert output_file.name.endswith(".pdf")
+    assert output_file.type == "application/pdf"
+    assert output_file.size > 0
+    assert str(output_file.id) in str(output_file.url)
+    assert response.warning is None
+    assert str(response.input_id) == str(uploaded_pdf_for_color_conversion.id)
+
+
+@pytest.mark.asyncio
 async def test_live_async_convert_colors_custom_profile_success(
     pdfrest_api_key: str,
     pdfrest_live_base_url: str,
@@ -252,6 +323,43 @@ async def test_live_async_convert_colors_invalid_color_profile(
                 uploaded_pdf_for_color_conversion,
                 color_profile="srgb",
                 extra_body={"color_profile": "not-a-color-profile"},
+            )
+
+
+def test_live_convert_colors_invalid_rendering_intent(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_color_conversion: PdfRestFile,
+) -> None:
+    with (
+        PdfRestClient(
+            api_key=pdfrest_api_key,
+            base_url=pdfrest_live_base_url,
+        ) as client,
+        pytest.raises(PdfRestApiError, match=r"(?i)(rendering|intent)"),
+    ):
+        client.convert_colors(
+            uploaded_pdf_for_color_conversion,
+            color_profile="srgb",
+            extra_body={"rendering_intent": "not-an-intent"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_live_async_convert_colors_invalid_rendering_intent(
+    pdfrest_api_key: str,
+    pdfrest_live_base_url: str,
+    uploaded_pdf_for_color_conversion: PdfRestFile,
+) -> None:
+    async with AsyncPdfRestClient(
+        api_key=pdfrest_api_key,
+        base_url=pdfrest_live_base_url,
+    ) as client:
+        with pytest.raises(PdfRestApiError, match=r"(?i)(rendering|intent)"):
+            await client.convert_colors(
+                uploaded_pdf_for_color_conversion,
+                color_profile="srgb",
+                extra_body={"rendering_intent": "not-an-intent"},
             )
 
 
