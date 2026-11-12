@@ -140,7 +140,10 @@ Use this group to improve compatibility, performance, or file size.
   [flatten_transparencies][pdfrest.PdfRestClient.flatten_transparencies]
 - Raster and color normalization:
   [rasterize_pdf][pdfrest.PdfRestClient.rasterize_pdf],
-  [convert_colors][pdfrest.PdfRestClient.convert_colors]
+  [convert_colors][pdfrest.PdfRestClient.convert_colors] applies preset or
+  uploaded ICC profiles and accepts a
+  [PdfRenderingIntent][pdfrest.types.PdfRenderingIntent] to control color
+  mapping
 
 ## Convert into or out of PDF
 

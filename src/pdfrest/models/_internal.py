@@ -41,6 +41,7 @@ from ..types import (
     PdfPageOrientation,
     PdfPageSize,
     PdfPresetColorProfile,
+    PdfRenderingIntent,
     PdfRestriction,
     PdfStructuredTextDataPresentation,
     PdfStructuredTextFontName,
@@ -3869,6 +3870,10 @@ class PdfConvertColorsPayload(BaseModel):
         Literal["true", "false"] | None,
         Field(serialization_alias="preserve_black", default=None),
         BeforeValidator(_bool_to_true_false),
+    ] = None
+    rendering_intent: Annotated[
+        PdfRenderingIntent | None,
+        Field(serialization_alias="rendering_intent", default=None),
     ] = None
     output: Annotated[
         str | None,
