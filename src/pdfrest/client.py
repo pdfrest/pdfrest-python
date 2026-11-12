@@ -175,6 +175,7 @@ from .types import (
     PdfPageSize,
     PdfPresetColorProfile,
     PdfRedactionInstruction,
+    PdfRenderingIntent,
     PdfRestriction,
     PdfRGBColor,
     PdfSignatureConfiguration,
@@ -5047,6 +5048,7 @@ class PdfRestClient(_SyncApiClient):
         *,
         color_profile: PdfPresetColorProfile | PdfRestFile | Sequence[PdfRestFile],
         preserve_black: bool = False,
+        rendering_intent: PdfRenderingIntent | None = None,
         output: str | None = None,
         extra_query: Query | None = None,
         extra_headers: AnyMapping | None = None,
@@ -5061,6 +5063,7 @@ class PdfRestClient(_SyncApiClient):
             file: Uploaded input file or files as `PdfRestFile` objects.
             color_profile: Named color profile used by color conversion.
             preserve_black: When true, keeps pure black content from being remapped during color-profile conversion.
+            rendering_intent: Color-mapping strategy used when converting colors to the selected ICC profile. When omitted, pdfRest uses the profile-defined intent.
             output: Output filename prefix used by pdfRest when creating files.
             extra_query: Additional query parameters merged into the request.
             extra_headers: Additional HTTP headers merged into the request.
@@ -5079,6 +5082,8 @@ class PdfRestClient(_SyncApiClient):
             "color_profile": color_profile,
             "preserve_black": preserve_black,
         }
+        if rendering_intent is not None:
+            payload["rendering_intent"] = rendering_intent
         if output is not None:
             payload["output"] = output
 
@@ -8928,6 +8933,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
         *,
         color_profile: PdfPresetColorProfile | PdfRestFile | Sequence[PdfRestFile],
         preserve_black: bool = False,
+        rendering_intent: PdfRenderingIntent | None = None,
         output: str | None = None,
         extra_query: Query | None = None,
         extra_headers: AnyMapping | None = None,
@@ -8942,6 +8948,7 @@ class AsyncPdfRestClient(_AsyncApiClient):
             file: Uploaded input file or files as `PdfRestFile` objects.
             color_profile: Named color profile used by color conversion.
             preserve_black: When true, keeps pure black content from being remapped during color-profile conversion.
+            rendering_intent: Color-mapping strategy used when converting colors to the selected ICC profile. When omitted, pdfRest uses the profile-defined intent.
             output: Output filename prefix used by pdfRest when creating files.
             extra_query: Additional query parameters merged into the request.
             extra_headers: Additional HTTP headers merged into the request.
@@ -8960,6 +8967,8 @@ class AsyncPdfRestClient(_AsyncApiClient):
             "color_profile": color_profile,
             "preserve_black": preserve_black,
         }
+        if rendering_intent is not None:
+            payload["rendering_intent"] = rendering_intent
         if output is not None:
             payload["output"] = output
 

@@ -59,6 +59,7 @@ __all__ = (
     "PdfRedactionInstruction",
     "PdfRedactionPreset",
     "PdfRedactionType",
+    "PdfRenderingIntent",
     "PdfRestriction",
     "PdfSignatureConfiguration",
     "PdfSignatureCredentials",
@@ -1324,5 +1325,26 @@ PdfPresetColorProfile = Literal[
 ]
 
 PdfColorProfile = PdfPresetColorProfile
+
+PdfRenderingIntent: TypeAlias = Literal[
+    "profile",
+    "perceptual",
+    "relative_colorimetric",
+    "saturation",
+    "absolute_colorimetric",
+]
+"""Color-mapping strategy used when converting PDF colors.
+
+Accepted values:
+
+- `profile`: Use the rendering intent specified by the selected ICC profile.
+- `perceptual`: Compress the source gamut to preserve visual color relationships.
+- `relative_colorimetric`: Preserve in-gamut colors relative to the destination
+  white point and map out-of-gamut colors to the closest reproducible colors.
+- `saturation`: Prioritize vivid color saturation over exact color relationships.
+- `absolute_colorimetric`: Preserve the source white point and reproduce in-gamut
+  colors without adapting them to the destination white point.
+"""
+
 WatermarkHorizontalAlignment = Literal["left", "center", "right"]
 WatermarkVerticalAlignment = Literal["top", "center", "bottom"]
