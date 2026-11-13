@@ -6,7 +6,11 @@ import pytest
 from annotated_types import Ge, Le
 
 from pdfrest import AsyncPdfRestClient, PdfRestApiError, PdfRestClient
-from pdfrest.models import ExtractedTextDocument, PdfRestFile
+from pdfrest.models import (
+    ExtractedTextDocument,
+    PdfRestFile,
+    PdfZugferdValidationResponse,
+)
 from pdfrest.models._internal import _PdfZugferdRenderOptions
 from pdfrest.types import (
     PdfZugferdCurrencyDisplay,
@@ -171,6 +175,17 @@ def _assert_zugferd_output(
     assert output.size > 0
     assert f"/resource/{output.id}" in str(output.url)
     assert output_bytes.startswith(b"%PDF-")
+
+
+def _assert_zugferd_validation(
+    validation: PdfZugferdValidationResponse,
+    output: PdfRestFile,
+) -> None:
+    assert validation.status == "VALID"
+    assert validation.pdfa is True
+    assert validation.content_match_status in {"CONFIRMED", "DEMO_REDACTED"}
+    assert validation.input_id == output.id
+    assert f"/resource/{output.id}" in validation.input_url
 
 
 def _render_first_page(
@@ -371,6 +386,7 @@ def test_live_convert_invoice_xml_to_zugferd_pdf_uses_requested_font_resource(
             response.output_file,
             word_style=True,
         )
+        validation = client.validate_zugferd_pdf(response.output_file)
 
     names = {name.lower() for name in _font_names(extracted)}
     assert any(
@@ -378,6 +394,7 @@ def test_live_convert_invoice_xml_to_zugferd_pdf_uses_requested_font_resource(
     )
     assert response.warning is None
     _assert_zugferd_output(response.output_file, output_bytes, output)
+    _assert_zugferd_validation(validation, response.output_file)
 
 
 @pytest.mark.parametrize(
@@ -410,6 +427,7 @@ async def test_live_async_convert_invoice_xml_to_zugferd_pdf_uses_requested_font
             response.output_file,
             word_style=True,
         )
+        validation = await client.validate_zugferd_pdf(response.output_file)
 
     names = {name.lower() for name in _font_names(extracted)}
     assert any(
@@ -421,6 +439,7 @@ async def test_live_async_convert_invoice_xml_to_zugferd_pdf_uses_requested_font
         output_bytes,
         f"async-{output}",
     )
+    _assert_zugferd_validation(validation, response.output_file)
 
 
 @pytest.mark.parametrize(
@@ -671,6 +690,7 @@ def test_live_convert_pdf_to_zugferd_pdf_allows_replacement(
             "replacement-permitted",
         )
         extracted = client.extract_pdf_text(response.output_file)
+        validation = client.validate_zugferd_pdf(response.output_file)
 
     assert response.input_ids == [invoice.id, mismatched_pdf.id, logo.id]
     assert response.warning is None
@@ -679,6 +699,7 @@ def test_live_convert_pdf_to_zugferd_pdf_allows_replacement(
     assert extracted.full_text is not None
     assert "Replacement permitted" in (extracted.full_text.document_text or "")
     _assert_zugferd_output(response.output_file, output_bytes, "replacement-permitted")
+    _assert_zugferd_validation(validation, response.output_file)
 
 
 @pytest.mark.asyncio
@@ -715,6 +736,7 @@ async def test_live_async_convert_pdf_to_zugferd_pdf_allows_replacement(
             "async-replacement-permitted",
         )
         extracted = await client.extract_pdf_text(response.output_file)
+        validation = await client.validate_zugferd_pdf(response.output_file)
 
     assert response.input_ids == [invoice.id, mismatched_pdf.id, logo.id]
     assert response.warning is None
@@ -727,6 +749,7 @@ async def test_live_async_convert_pdf_to_zugferd_pdf_allows_replacement(
         output_bytes,
         "async-replacement-permitted",
     )
+    _assert_zugferd_validation(validation, response.output_file)
 
 
 @pytest.mark.parametrize(
