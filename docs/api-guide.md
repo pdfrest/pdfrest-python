@@ -113,7 +113,10 @@ Use this group for password protection, permissions, signatures, and standards.
   [convert_pdf_to_zugferd_pdf][pdfrest.PdfRestClient.convert_pdf_to_zugferd_pdf]
   embeds CII XML into an existing matching PDF. The latter preserves the PDF by
   default; set `allow_regeneration=True` only when the service may replace a
-  mismatched PDF with a newly rendered invoice.
+  mismatched PDF with a newly rendered invoice. Use
+  [validate_zugferd_pdf][pdfrest.PdfRestClient.validate_zugferd_pdf] to check an
+  existing ZUGFeRD or Factur-X package, visible-content match, and independent
+  PDF/A-3 conformance without modifying the file.
 
 ## PDF cleanup and rendering normalization
 

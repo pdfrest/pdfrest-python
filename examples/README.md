@@ -40,6 +40,8 @@ supported interpreter matrix.
 - `examples/convert_pdf_to_zugferd_pdf/convert_pdf_to_zugferd_pdf_example.py` –
   combine an uploaded PDF with CII XML and explicitly permit replacement when
   the visual PDF does not match the invoice.
+- `examples/validate_zugferd_pdf/validate_zugferd_pdf_example.py` – create and
+  validate a ZUGFeRD PDF/A-3 invoice, including content-match findings.
 - `examples/delete/delete_example.py` – demonstrate file deletion (sync + async
   variants).
 - `examples/extract_text/extract_pdf_text_example.py` – run `extract_pdf_text`

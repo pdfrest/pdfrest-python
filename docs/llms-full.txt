@@ -163,6 +163,8 @@ to the API guide and API reference for exact method names and options.
 - Embed CII XML into a matching PDF with ``convert_pdf_to_zugferd_pdf``;
   preserve the supplied PDF by default or explicitly permit regeneration when
   the PDF and invoice do not match
+- Validate existing ZUGFeRD or Factur-X PDFs for package, XML, visible-content,
+  and independent PDF/A-3 conformance with ``validate_zugferd_pdf``
 
 ### Extraction and Analysis
 
